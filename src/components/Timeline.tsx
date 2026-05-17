@@ -113,9 +113,18 @@ export default function Timeline() {
 
   const ticks = Array.from(ticksSet).sort((a, b) => a - b);
 
+  const worldToScreen = (year: number) => {
+    return yearToX(year) * zoom;
+  };
+
+  const scaledFontSize = () => {
+    return Math.max(10, Math.min(18, 10 + zoom * 2));
+  };
+
   // FIXED AXIS RANGE
-  const axisStart = yearToX(-3000);
-  const axisEnd = yearToX(2025);
+  const axisStart = worldToScreen(-3000);
+  const axisEnd = worldToScreen(2025);
+
 
   return (
     <div className="relative w-screen h-screen bg-zinc-950 overflow-hidden">
@@ -158,7 +167,7 @@ export default function Timeline() {
         className={`bg-zinc-900 ${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
       >
 
-        <g transform={`translate(${panX},0) scale(${zoom},1)`}>
+        <g transform={`translate(${panX},0)`}>
 
           {/* AXIS */}
           <line
@@ -171,7 +180,7 @@ export default function Timeline() {
 
           {/* TICKS */}
           {ticks.map(year => {
-            const x = yearToX(year);
+            const x = worldToScreen(year);
             const isZero = year === 0;
 
             return (
@@ -189,7 +198,7 @@ export default function Timeline() {
                   x={x + 6}
                   y={isZero ? 85 : 105}
                   fill={isZero ? "#ff0000" : "#aaa"}
-                  fontSize={isZero ? 14 : 10}
+                  fontSize={isZero ? scaledFontSize() + 2 : scaledFontSize()}
                   fontWeight={isZero ? "bold" : "normal"}
                 >
                   {isZero ? "YEAR 0 (ANCHOR)" : formatYear(year)}
@@ -200,8 +209,8 @@ export default function Timeline() {
 
           {/* EVENTS */}
           {events.map((event, i) => {
-            const x = yearToX(event.startYear);
-            const x2 = yearToX(event.endYear);
+            const x = worldToScreen(event.startYear);
+            const x2 = worldToScreen(event.endYear);
 
             const width = x2 - x;
 
@@ -218,7 +227,7 @@ export default function Timeline() {
                   x={8}
                   y={16}
                   fill="white"
-                  fontSize={12}
+                  fontSize={scaledFontSize()}
                 >
                   {event.title}
                 </text>
