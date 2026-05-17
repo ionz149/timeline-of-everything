@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { events } from "../data/events";
 import { yearToX } from "../utils/timelineScale";
 import { formatYear } from "../utils/formatYear";
@@ -7,8 +7,17 @@ const HEIGHT = 600;
 const VIEWPORT_WIDTH = 1400;
 
 export default function Timeline() {
+  const svgRef = useRef<SVGSVGElement | null>(null);
+
   const [zoom, setZoom] = useState(1);
   const [panX, setPanX] = useState(0);
+
+  // =========================
+  // 🖱️ DRAG STATE (NEW)
+  // =========================
+  const [isDragging, setIsDragging] = useState(false);
+  const [lastX, setLastX] = useState(0);
+  const [velocityX, setVelocityX] = useState(0);
 
   const centerOnZero = () => {
     const worldZeroX = yearToX(0);
@@ -17,15 +26,90 @@ export default function Timeline() {
     setPanX(centerScreen - worldZeroX * zoom);
   };
 
-  // ✅ FORCE ticks AND guarantee 0 exists
+  // =========================
+  // 🎯 WHEEL ZOOM (CURSOR-BASED)
+  // =========================
+  const handleWheel = (e: React.WheelEvent<SVGSVGElement>) => {
+    e.preventDefault();
+
+    const zoomFactor = 1.1;
+    const direction = e.deltaY > 0 ? 1 / zoomFactor : zoomFactor;
+
+    const newZoom = Math.max(0.2, Math.min(10, zoom * direction));
+
+    const svg = svgRef.current;
+    if (!svg) return;
+
+    const rect = svg.getBoundingClientRect();
+
+    const mouseX = e.clientX - rect.left;
+
+    const worldX = (mouseX - panX) / zoom;
+
+    const newPanX = mouseX - worldX * newZoom;
+
+    setZoom(newZoom);
+    setPanX(newPanX);
+  };
+
+  // =========================
+  // 🖱️ DRAG HANDLERS (NEW)
+  // =========================
+  const handleMouseDown = (e: React.MouseEvent<SVGSVGElement>) => {
+    setIsDragging(true);
+    setLastX(e.clientX);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
+    if (!isDragging) return;
+
+    const deltaX = e.clientX - lastX;
+
+    setPanX(prev => prev + deltaX);
+    setVelocityX(deltaX);
+
+    setLastX(e.clientX);
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  // =========================
+  // ⚡ MOMENTUM / INERTIA LOOP (NEW)
+  // =========================
+  useEffect(() => {
+    if (isDragging) return;
+    if (Math.abs(velocityX) < 0.1) return;
+
+    const frame = requestAnimationFrame(() => {
+      setPanX(prev => prev + velocityX);
+      setVelocityX(v => v * 0.92); // friction
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, [isDragging, velocityX]);
+
+  // =========================
+  // 📏 DYNAMIC TICK DENSITY
+  // =========================
+  const getTickStep = (z: number) => {
+    if (z < 0.4) return 1000;
+    if (z < 0.8) return 500;
+    if (z < 1.5) return 250;
+    if (z < 3) return 100;
+    return 50;
+  };
+
+  const step = getTickStep(zoom);
+
   const ticksSet = new Set<number>();
 
-  for (let y = -3000; y <= 2025; y += 250) {
+  for (let y = -3000; y <= 2025; y += step) {
     ticksSet.add(y);
   }
 
-  // 🔴 HARD GUARANTEE YEAR 0 EXISTS
-  ticksSet.add(0);
+  ticksSet.add(0); // force year 0
 
   const ticks = Array.from(ticksSet).sort((a, b) => a - b);
 
@@ -39,44 +123,40 @@ export default function Timeline() {
       {/* controls */}
       <div className="absolute top-4 left-4 z-10 flex gap-2">
 
-        <button
-          onClick={() => setZoom(z => z * 1.2)}
-          className="bg-zinc-800 text-white px-3 py-2 rounded"
-        >
+        <button onClick={() => setZoom(z => z * 1.2)} className="bg-zinc-800 text-white px-3 py-2 rounded">
           Zoom In
         </button>
 
-        <button
-          onClick={() => setZoom(z => z / 1.2)}
-          className="bg-zinc-800 text-white px-3 py-2 rounded"
-        >
+        <button onClick={() => setZoom(z => z / 1.2)} className="bg-zinc-800 text-white px-3 py-2 rounded">
           Zoom Out
         </button>
 
-        <button
-          onClick={() => setPanX(x => x - 200)}
-          className="bg-zinc-800 text-white px-3 py-2 rounded"
-        >
+        <button onClick={() => setPanX(x => x - 200)} className="bg-zinc-800 text-white px-3 py-2 rounded">
           Left
         </button>
 
-        <button
-          onClick={() => setPanX(x => x + 200)}
-          className="bg-zinc-800 text-white px-3 py-2 rounded"
-        >
+        <button onClick={() => setPanX(x => x + 200)} className="bg-zinc-800 text-white px-3 py-2 rounded">
           Right
         </button>
 
-        <button
-          onClick={centerOnZero}
-          className="bg-blue-600 text-white px-3 py-2 rounded"
-        >
+        <button onClick={centerOnZero} className="bg-blue-600 text-white px-3 py-2 rounded">
           Center
         </button>
 
       </div>
 
-      <svg width={VIEWPORT_WIDTH} height={HEIGHT} className="bg-zinc-900">
+      {/* SVG VIEWPORT */}
+      <svg
+        ref={svgRef}
+        onWheel={handleWheel}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        width={VIEWPORT_WIDTH}
+        height={HEIGHT}
+        className={`bg-zinc-900 ${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
+      >
 
         <g transform={`translate(${panX},0) scale(${zoom},1)`}>
 
@@ -96,7 +176,6 @@ export default function Timeline() {
 
             return (
               <g key={year}>
-                {/* tick line */}
                 <line
                   x1={x}
                   y1={isZero ? 90 : 110}
@@ -106,7 +185,6 @@ export default function Timeline() {
                   strokeWidth={isZero ? 3 : 1}
                 />
 
-                {/* label */}
                 <text
                   x={x + 6}
                   y={isZero ? 85 : 105}
