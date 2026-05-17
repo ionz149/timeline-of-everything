@@ -1,16 +1,12 @@
-// export const MIN_YEAR = -10000;
 export const MIN_YEAR = -3000;
 export const MAX_YEAR = 2026;
 
-export const TOTAL_YEARS =
-  MAX_YEAR - MIN_YEAR;
+export const WORLD_WIDTH = 20000;
 
-export function yearToX(
-  year: number,
-  width: number
-) {
+export function yearToX(year: number) {
   return (
-    ((year - MIN_YEAR) / TOTAL_YEARS) *
-    width
+    ((year - MIN_YEAR) /
+      (MAX_YEAR - MIN_YEAR)) *
+    WORLD_WIDTH
   );
 }
