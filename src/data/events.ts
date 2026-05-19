@@ -2,12 +2,30 @@ import type { TimelineEvent } from "../types/event";
 
 export const events: TimelineEvent[] = [
 	{
-		id: "pyramids",
-		title: "Great Pyramid of Giza",
-		startYear: -2580,
-		endYear: -2560,
-		category: "wonders",
+		id: "egyptian-empire",
+		title: "Egyptian Empire",
+		startYear: -3100,
+		endYear: -30,
+		category: "empires",
 		region: "egypt",			
+	},
+
+	{
+		id: "norte-chico-empire",
+		title: "Norte Chico Empire",
+		startYear: -3000,
+		endYear: -1800,
+		category: "empires",
+		region: "Unknown",
+	},	
+
+	{
+		id: "babylonian-empire",
+		title: "Babylonian Empire",
+		startYear: -1792,
+		endYear: -1595,
+		category: "empires",
+		region: "Mesopotamia",
 	},
 
 	{
