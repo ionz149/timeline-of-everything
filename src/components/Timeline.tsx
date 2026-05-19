@@ -105,7 +105,7 @@ export default function Timeline() {
 
   const ticksSet = new Set<number>();
 
-  for (let y = -3000; y <= 2025; y += step) {
+  for (let y = -3400; y <= 2025; y += step) {
     ticksSet.add(y);
   }
 
@@ -122,7 +122,7 @@ export default function Timeline() {
   };
 
   // FIXED AXIS RANGE
-  const axisStart = worldToScreen(-3000);
+  const axisStart = worldToScreen(-3400);
   const axisEnd = worldToScreen(2025);
 
 

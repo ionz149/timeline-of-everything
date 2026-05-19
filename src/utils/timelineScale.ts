@@ -1,4 +1,4 @@
-export const MIN_YEAR = -3000;
+export const MIN_YEAR = -3400;
 export const MAX_YEAR = 2026;
 
 export const WORLD_WIDTH = 20000;
