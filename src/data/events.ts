@@ -7,7 +7,8 @@ export const events: TimelineEvent[] = [
 		startYear: -3100,
 		endYear: -30,
 		category: "empires",
-		region: "egypt",			
+		region: "egypt",
+		color: "#991b1b",			
 	},
 
 	{
@@ -17,6 +18,7 @@ export const events: TimelineEvent[] = [
 		endYear: -1800,
 		category: "empires",
 		region: "Unknown",
+		color: "#2563eb",
 	},	
 
 	{
@@ -26,6 +28,7 @@ export const events: TimelineEvent[] = [
 		endYear: -1595,
 		category: "empires",
 		region: "Mesopotamia",
+		color: "#7c3aed",
 	},
 
 	{

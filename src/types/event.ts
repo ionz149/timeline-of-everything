@@ -16,4 +16,7 @@ export interface TimelineEvent {
   endYear: number;
   category: EventCategory;
   region?: string;
+
+  // optional per-event color
+  color?: string;
 }

@@ -2,6 +2,7 @@ import { useRef, useState, useEffect } from "react";
 import { events } from "../data/events";
 import { yearToX } from "../utils/timelineScale";
 import { formatYear } from "../utils/formatYear";
+import { categoryColors } from "../utils/categoryColors";
 
 const HEIGHT = 600;
 const VIEWPORT_WIDTH = 1400;
@@ -40,7 +41,7 @@ export default function Timeline() {
     );
 
     const newZoom = Math.max(
-      0.2,
+      0.02,
       Math.min(6, zoom * direction)
     );
 
@@ -228,7 +229,11 @@ export default function Timeline() {
                 <rect
                   width={width}
                   height={24}
-                  fill="#3b82f6"
+                  fill={
+                    event.color ??
+                    categoryColors[event.category] ??
+                    categoryColors.other
+                  }
                   rx={4}
                 />
 
