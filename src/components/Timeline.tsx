@@ -32,10 +32,17 @@ export default function Timeline() {
   const handleWheel = (e: React.WheelEvent<SVGSVGElement>) => {
     e.preventDefault();
 
-    const zoomFactor = 1.1;
-    const direction = e.deltaY > 0 ? 1 / zoomFactor : zoomFactor;
+    // MUCH smoother zoom curve
+    const zoomIntensity = 0.0015;
 
-    const newZoom = Math.max(0.2, Math.min(10, zoom * direction));
+    const direction = Math.exp(
+      -e.deltaY * zoomIntensity
+    );
+
+    const newZoom = Math.max(
+      0.2,
+      Math.min(6, zoom * direction)
+    );
 
     const svg = svgRef.current;
     if (!svg) return;
@@ -44,8 +51,10 @@ export default function Timeline() {
 
     const mouseX = e.clientX - rect.left;
 
+    // world coordinate under cursor
     const worldX = (mouseX - panX) / zoom;
 
+    // keep cursor locked to same world point
     const newPanX = mouseX - worldX * newZoom;
 
     setZoom(newZoom);
@@ -127,7 +136,7 @@ export default function Timeline() {
 
 
   return (
-    <div className="relative w-screen h-screen bg-zinc-950 overflow-hidden">
+    <div className="fixed inset-0 bg-zinc-950 overflow-hidden">
 
       {/* controls */}
       <div className="absolute top-4 left-4 z-10 flex gap-2">
@@ -164,7 +173,7 @@ export default function Timeline() {
         onMouseLeave={handleMouseUp}
         width={VIEWPORT_WIDTH}
         height={HEIGHT}
-        className={`bg-zinc-900 ${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
+        className={`w-full h-full bg-zinc-900 ${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
       >
 
         <g transform={`translate(${panX},0)`}>
