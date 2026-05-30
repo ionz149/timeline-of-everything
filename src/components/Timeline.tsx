@@ -3,6 +3,8 @@ import { events } from "../data/events";
 import { yearToX } from "../utils/timelineScale";
 import { formatYear } from "../utils/formatYear";
 import { categoryColors } from "../utils/categoryColors";
+import { lanes, laneHeight } from "../config/lanes";
+import { packLaneEvents } from "../utils/packLaneEvents";
 
 const HEIGHT = 600;
 const VIEWPORT_WIDTH = 1400;
@@ -13,8 +15,45 @@ export default function Timeline() {
   const [zoom, setZoom] = useState(1);
   const [panX, setPanX] = useState(0);
 
+  const packed = packLaneEvents(events);
+
   // =========================
-  // 🖱️ DRAG STATE (NEW)
+  // LAYOUT CONFIG
+  // =========================
+  const ROW_HEIGHT = 35;
+  const BASE_PADDING = 60;
+
+  // number of rows per lane (from packing)
+  const laneRowCounts: Record<string, number> = {};
+
+  lanes.forEach(lane => {
+    laneRowCounts[lane.id] = packed[lane.id]?.length ?? 0;
+  });
+
+  // compute lane start positions + total heights
+  const laneStartY: Record<string, number> = {};
+  const laneHeights: Record<string, number> = {};
+
+  let currentY = 160;
+
+  lanes.forEach(lane => {
+    const rows = laneRowCounts[lane.id] ?? 0;
+
+    const height = Math.max(
+      laneHeight,
+      rows * ROW_HEIGHT + BASE_PADDING
+    );
+
+    laneStartY[lane.id] = currentY;
+    laneHeights[lane.id] = height;
+
+    currentY += height;
+  });
+
+  const getLaneY = (laneId: string) => laneStartY[laneId] ?? 160;
+
+  // =========================
+  // INTERACTION STATE
   // =========================
   const [isDragging, setIsDragging] = useState(false);
   const [lastX, setLastX] = useState(0);
@@ -23,39 +62,29 @@ export default function Timeline() {
   const centerOnZero = () => {
     const worldZeroX = yearToX(0);
     const centerScreen = VIEWPORT_WIDTH / 2;
-
     setPanX(centerScreen - worldZeroX * zoom);
   };
 
   // =========================
-  // 🎯 WHEEL ZOOM (CURSOR-BASED)
+  // WHEEL ZOOM
   // =========================
   const handleWheel = (e: React.WheelEvent<SVGSVGElement>) => {
     e.preventDefault();
 
-    // MUCH smoother zoom curve
     const zoomIntensity = 0.0015;
 
-    const direction = Math.exp(
-      -e.deltaY * zoomIntensity
-    );
+    const direction = Math.exp(-e.deltaY * zoomIntensity);
 
-    const newZoom = Math.max(
-      0.02,
-      Math.min(6, zoom * direction)
-    );
+    const newZoom = Math.max(0.02, Math.min(6, zoom * direction));
 
     const svg = svgRef.current;
     if (!svg) return;
 
     const rect = svg.getBoundingClientRect();
-
     const mouseX = e.clientX - rect.left;
 
-    // world coordinate under cursor
     const worldX = (mouseX - panX) / zoom;
 
-    // keep cursor locked to same world point
     const newPanX = mouseX - worldX * newZoom;
 
     setZoom(newZoom);
@@ -63,7 +92,7 @@ export default function Timeline() {
   };
 
   // =========================
-  // 🖱️ DRAG HANDLERS (NEW)
+  // DRAG
   // =========================
   const handleMouseDown = (e: React.MouseEvent<SVGSVGElement>) => {
     setIsDragging(true);
@@ -85,23 +114,21 @@ export default function Timeline() {
     setIsDragging(false);
   };
 
-  // =========================
-  // ⚡ MOMENTUM / INERTIA LOOP (NEW)
-  // =========================
+  // inertia
   useEffect(() => {
     if (isDragging) return;
     if (Math.abs(velocityX) < 0.1) return;
 
     const frame = requestAnimationFrame(() => {
       setPanX(prev => prev + velocityX);
-      setVelocityX(v => v * 0.92); // friction
+      setVelocityX(v => v * 0.92);
     });
 
     return () => cancelAnimationFrame(frame);
   }, [isDragging, velocityX]);
 
   // =========================
-  // 📏 DYNAMIC TICK DENSITY
+  // TICKS
   // =========================
   const getTickStep = (z: number) => {
     if (z < 0.4) return 1000;
@@ -119,52 +146,37 @@ export default function Timeline() {
     ticksSet.add(y);
   }
 
-  ticksSet.add(0); // force year 0
+  ticksSet.add(0);
 
   const ticks = Array.from(ticksSet).sort((a, b) => a - b);
 
-  const worldToScreen = (year: number) => {
-    return yearToX(year) * zoom;
-  };
+  const worldToScreen = (year: number) => yearToX(year) * zoom;
 
-  const scaledFontSize = () => {
-    return Math.max(10, Math.min(18, 10 + zoom * 2));
-  };
+  const scaledFontSize = () =>
+    Math.max(10, Math.min(18, 10 + zoom * 2));
 
-  // FIXED AXIS RANGE
   const axisStart = worldToScreen(-3400);
   const axisEnd = worldToScreen(2025);
 
-
+  // =========================
+  // RENDER
+  // =========================
   return (
     <div className="fixed inset-0 bg-zinc-950 overflow-hidden">
 
       {/* controls */}
-      <div className="absolute top-4 left-4 z-10 flex gap-2">
-
-        <button onClick={() => setZoom(z => z * 1.2)} className="bg-zinc-800 text-white px-3 py-2 rounded">
-          Zoom In
-        </button>
-
-        <button onClick={() => setZoom(z => z / 1.2)} className="bg-zinc-800 text-white px-3 py-2 rounded">
-          Zoom Out
-        </button>
-
-        <button onClick={() => setPanX(x => x - 200)} className="bg-zinc-800 text-white px-3 py-2 rounded">
-          Left
-        </button>
-
-        <button onClick={() => setPanX(x => x + 200)} className="bg-zinc-800 text-white px-3 py-2 rounded">
-          Right
-        </button>
-
-        <button onClick={centerOnZero} className="bg-blue-600 text-white px-3 py-2 rounded">
-          Center
-        </button>
-
+      <div className="absolute top-4 left-0 z-10 flex justify-between gap-2 w-full px-6">
+        <h1 className="text-white text-2xl font-bold">⏳ The Timeline of Everything</h1>
+        <div className="flex flex-row gap-2">
+          <button onClick={() => setZoom(z => z * 1.2)} className="bg-zinc-800 text-white px-3 py-2 rounded">Zoom In</button>
+          <button onClick={() => setZoom(z => z / 1.2)} className="bg-zinc-800 text-white px-3 py-2 rounded">Zoom Out</button>
+          <button onClick={() => setPanX(x => x - 200)} className="bg-zinc-800 text-white px-3 py-2 rounded">Left</button>
+          <button onClick={() => setPanX(x => x + 200)} className="bg-zinc-800 text-white px-3 py-2 rounded">Right</button>
+          <button onClick={centerOnZero} className="bg-blue-600 text-white px-3 py-2 rounded">Center</button>
+        </div>
       </div>
 
-      {/* SVG VIEWPORT */}
+      {/* SVG */}
       <svg
         ref={svgRef}
         onWheel={handleWheel}
@@ -176,17 +188,10 @@ export default function Timeline() {
         height={HEIGHT}
         className={`w-full h-full bg-zinc-900 ${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
       >
-
         <g transform={`translate(${panX},0)`}>
 
           {/* AXIS */}
-          <line
-            x1={axisStart}
-            y1={120}
-            x2={axisEnd}
-            y2={120}
-            stroke="#666"
-          />
+          <line x1={axisStart} y1={120} x2={axisEnd} y2={120} stroke="#666" />
 
           {/* TICKS */}
           {ticks.map(year => {
@@ -203,7 +208,6 @@ export default function Timeline() {
                   stroke={isZero ? "#ff0000" : "#888"}
                   strokeWidth={isZero ? 3 : 1}
                 />
-
                 <text
                   x={x + 6}
                   y={isZero ? 85 : 105}
@@ -217,35 +221,68 @@ export default function Timeline() {
             );
           })}
 
+          {/* LANES */}
+          {lanes.map(lane => (
+            <g key={lane.id}>
+              <rect
+                x={axisStart}
+                y={getLaneY(lane.id) - 30}
+                width={axisEnd - axisStart}
+                height={laneHeights[lane.id]}
+                fill={
+                  lane.color
+                    ? `${lane.color}15`
+                    : "rgba(255,255,255,0.05)"  
+                }
+                // stroke={lane.color ?? "#333"}
+                // strokeOpacity={0.5}
+              />
+              
+
+              <text
+                x={axisStart + 20}
+                y={getLaneY(lane.id)}
+                fill="#888"
+                fontSize={18}
+                fontWeight="bold"
+              >
+                {lane.icon} {lane.label.toUpperCase()}
+              </text>
+            </g>
+          ))}
+
           {/* EVENTS */}
-          {events.map((event, i) => {
-            const x = worldToScreen(event.startYear);
-            const x2 = worldToScreen(event.endYear);
+          {lanes.map(lane => {
+            const rows = packed[lane.id] ?? [];
 
-            const width = x2 - x;
+            return rows.map((row, rowIndex) =>
+              row.map(event => {
+                const x = worldToScreen(event.startYear);
+                const x2 = worldToScreen(event.endYear);
 
-            return (
-              <g key={event.id} transform={`translate(${x}, ${160 + i * 60})`}>
-                <rect
-                  width={width}
-                  height={24}
-                  fill={
-                    event.color ??
-                    categoryColors[event.category] ??
-                    categoryColors.other
-                  }
-                  rx={4}
-                />
+                const width = x2 - x;
 
-                <text
-                  x={8}
-                  y={16}
-                  fill="white"
-                  fontSize={scaledFontSize()}
-                >
-                  {event.title}
-                </text>
-              </g>
+                const y =
+                  getLaneY(lane.id) + rowIndex * ROW_HEIGHT;
+
+                return (
+                  <g key={event.id} transform={`translate(${x}, ${y})`}>
+                    <rect
+                      width={width}
+                      height={24}
+                      fill={
+                        event.color ??
+                        categoryColors[event.category] ??
+                        categoryColors.other
+                      }
+                      rx={4}
+                    />
+                    <text x={8} y={16} fill="white" fontSize={scaledFontSize()}>
+                      {event.title}
+                    </text>
+                  </g>
+                );
+              })
             );
           })}
 

@@ -1,13 +1,6 @@
-export type EventCategory =
-  | "warfare"
-  | "science"
-  | "politics"
-  | "culture"
-  | "economy"
-  | "technology"
-  | "empires"
-  | "wonders"
-  | "other";
+import { lanes } from "../config/lanes";
+
+export type Category = (typeof lanes)[number]["id"];
 
 export interface TimelineEvent {
   id: string;
@@ -16,7 +9,5 @@ export interface TimelineEvent {
   endYear: number;
   category: EventCategory;
   region?: string;
-
-  // optional per-event color
   color?: string;
 }

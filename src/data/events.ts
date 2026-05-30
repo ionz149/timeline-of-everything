@@ -32,12 +32,48 @@ export const events: TimelineEvent[] = [
 	},
 
 	{
+		id: "shang-empire",
+		title: "Shang Empire",
+		startYear: -1751,
+		endYear: -1111,
+		category: "empires",
+		region: "China"
+	},
+	
+	{
+		id: "chou-empire",
+		title: "Chou Empire",
+		startYear: -1000,
+		endYear: -800,
+		category: "empires",
+		region: "China"
+	},
+
+	{
+		id: "tang-dynasty",
+		title: "T'ang Dynasty",
+		startYear: 618,
+		endYear: 906,
+		category: "empires",
+		region: "China"
+	},
+	
+	{
+		id: "sung-dynasty",
+		title: "Sung Dynasty",
+		startYear: 906,
+		endYear: 1278,
+		category: "empires",
+		region: "China"
+	},		
+
+	{
 		id: "roman-empire",
 		title: "Roman Empire",
 		startYear: -27,
 		endYear: 476,
 		category: "empires",
-		region: "rome",		
+		region: "Rome"
 	},
 
 	{
