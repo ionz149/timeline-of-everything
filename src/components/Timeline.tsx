@@ -7,6 +7,7 @@ import { lanes, laneHeight } from "../config/lanes";
 import { packLaneEvents } from "../utils/packLaneEvents";
 import { laneBackground } from "../utils/laneStyle";
 import { ZoomIn, ZoomOut, ArrowLeft, ArrowRight, SquareSquare, Hourglass } from 'lucide-react';
+import EventPanel from "./EventPanel";
 
 const VIEWPORT_WIDTH = 1400;
 
@@ -14,6 +15,13 @@ export default function Timeline() {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [zoom, setZoom] = useState(1);
   const [panX, setPanX] = useState(0);
+
+  const [selectedEventId, setSelectedEventId] =
+    useState<string | null>(null);
+
+  const selectedEvent = events.find(
+    e => e.id === selectedEventId
+  );
 
   // =========================
   // FILTERS
@@ -180,10 +188,23 @@ export default function Timeline() {
   // RENDER
   // =========================
   return (
-    <div className="fixed inset-0 bg-zinc-950 overflow-hidden select-none">
+    <div
+      className="fixed inset-0 bg-zinc-950 overflow-hidden select-none"
+      onClick={() => setSelectedEventId(null)}
+    >
+
+      {selectedEvent && (
+        <EventPanel
+          event={selectedEvent}
+          onClose={() => setSelectedEventId(null)}
+        />
+      )}
 
       {/* controls */}
-      <div className="absolute top-4 left-0 z-10 flex justify-between gap-2 w-full px-6">
+      <div
+        className="absolute top-4 left-0 z-30 flex justify-between gap-2 w-full px-6"
+        onClick={(e) => e.stopPropagation()}
+      >
         <h1 className="text-white text-2xl font-bold flex flex-row gap-2 items-center"><Hourglass size={32} color="white" strokeWidth={2} /> Timeline of Everything</h1>
         <div className="flex flex-wrap gap-2 mt-2">
           {lanes.map(lane => {
@@ -231,7 +252,8 @@ export default function Timeline() {
         onMouseLeave={handleMouseUp}
         width={VIEWPORT_WIDTH}
         height="100%"
-        className={`w-full h-full bg-zinc-900 select-none ${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
+        // height={currentY + 200}
+        className={`w-full h-full relative z-10 bg-zinc-900 select-none ${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
       >
         <g transform={`translate(${panX},0)`}>
 
@@ -326,7 +348,16 @@ export default function Timeline() {
                   rowIndex * ROW_HEIGHT;
 
                 return (
-                  <g key={event.id} transform={`translate(${x}, ${y})`}>
+                  <g
+                    key={event.id}
+                    transform={`translate(${x}, ${y})`}
+                    // onClick={() => setSelectedEventId(event.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedEventId(event.id);
+                    }}
+                    className="cursor-pointer"
+                  >
                     <rect
                       width={width}
                       height={24}

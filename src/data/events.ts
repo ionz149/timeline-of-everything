@@ -8,7 +8,7 @@ export const events: TimelineEvent[] = [
 		endYear: -30,
 		category: "empires",
 		region: "egypt",
-		color: "#991b1b",			
+		color: "#991b1b",
 	},
 
 	{
@@ -19,7 +19,7 @@ export const events: TimelineEvent[] = [
 		category: "empires",
 		region: "Unknown",
 		color: "#2563eb",
-	},	
+	},
 
 	{
 		id: "babylonian-empire",
@@ -39,7 +39,7 @@ export const events: TimelineEvent[] = [
 		category: "empires",
 		region: "China"
 	},
-	
+
 	{
 		id: "chou-empire",
 		title: "Chou Empire",
@@ -57,7 +57,7 @@ export const events: TimelineEvent[] = [
 		category: "empires",
 		region: "China"
 	},
-	
+
 	{
 		id: "sung-dynasty",
 		title: "Sung Dynasty",
@@ -65,7 +65,7 @@ export const events: TimelineEvent[] = [
 		endYear: 1278,
 		category: "empires",
 		region: "China"
-	},		
+	},
 
 	{
 		id: "roman-empire",
@@ -73,7 +73,8 @@ export const events: TimelineEvent[] = [
 		startYear: -27,
 		endYear: 476,
 		category: "empires",
-		region: "Rome"
+		region: "Rome",
+		description: "One of the largest and most influential empires in history."
 	},
 
 	{
@@ -83,7 +84,7 @@ export const events: TimelineEvent[] = [
 		endYear: 1783,
 		category: "warfare",
 		region: "united-states",
-	},  	
+	},
 	{
 		id: "ww1",
 		title: "World War I",
