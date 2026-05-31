@@ -7,7 +7,7 @@ export interface TimelineEvent {
   title: string;
   startYear: number;
   endYear: number;
-  category: EventCategory;
+  category: Category;
   region?: string;
   color?: string;
 }

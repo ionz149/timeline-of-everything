@@ -2,19 +2,18 @@ import { useRef, useState, useEffect } from "react";
 import { events } from "../data/events";
 import { yearToX } from "../utils/timelineScale";
 import { formatYear } from "../utils/formatYear";
-import { categoryColors } from "../utils/categoryColors";
+import { laneMap } from "../utils/laneLookup";
 import { lanes, laneHeight } from "../config/lanes";
 import { packLaneEvents } from "../utils/packLaneEvents";
+import { laneBackground } from "../utils/laneStyle";
+import { ZoomIn, ZoomOut, ArrowLeft, ArrowRight, SquareSquare } from 'lucide-react';
 
-const HEIGHT = 600;
 const VIEWPORT_WIDTH = 1400;
 
 export default function Timeline() {
   const svgRef = useRef<SVGSVGElement | null>(null);
-
   const [zoom, setZoom] = useState(1);
   const [panX, setPanX] = useState(0);
-
   const packed = packLaneEvents(events);
 
   // =========================
@@ -166,13 +165,13 @@ export default function Timeline() {
 
       {/* controls */}
       <div className="absolute top-4 left-0 z-10 flex justify-between gap-2 w-full px-6">
-        <h1 className="text-white text-2xl font-bold">⏳ The Timeline of Everything</h1>
+        <h1 className="text-white text-2xl font-bold">⏳ Timeline of Everything</h1>
         <div className="flex flex-row gap-2">
-          <button onClick={() => setZoom(z => z * 1.2)} className="bg-zinc-800 text-white px-3 py-2 rounded">Zoom In</button>
-          <button onClick={() => setZoom(z => z / 1.2)} className="bg-zinc-800 text-white px-3 py-2 rounded">Zoom Out</button>
-          <button onClick={() => setPanX(x => x - 200)} className="bg-zinc-800 text-white px-3 py-2 rounded">Left</button>
-          <button onClick={() => setPanX(x => x + 200)} className="bg-zinc-800 text-white px-3 py-2 rounded">Right</button>
-          <button onClick={centerOnZero} className="bg-blue-600 text-white px-3 py-2 rounded">Center</button>
+          <button onClick={() => setZoom(z => z * 1.2)} className="bg-zinc-800 text-white px-3 py-2 rounded"><ZoomIn size={20} color="white" strokeWidth={2} /><span className="sr-only">Zoom In</span></button>
+          <button onClick={() => setZoom(z => z / 1.2)} className="bg-zinc-800 text-white px-3 py-2 rounded"><ZoomOut size={20} color="white" strokeWidth={2} /><span className="sr-only">Zoom Out</span></button>
+          <button onClick={() => setPanX(x => x - 200)} className="bg-zinc-800 text-white px-3 py-2 rounded"><ArrowLeft size={20} color="white" strokeWidth={2} /><span className="sr-only">Left</span></button>
+          <button onClick={centerOnZero} className="bg-blue-600 text-white px-3 py-2 rounded"><SquareSquare size={20} color="white" strokeWidth={2} /><span className="sr-only">Center</span></button>
+          <button onClick={() => setPanX(x => x + 200)} className="bg-zinc-800 text-white px-3 py-2 rounded"><ArrowRight size={20} color="white" strokeWidth={2} /><span className="sr-only">Right</span></button>
         </div>
       </div>
 
@@ -185,7 +184,7 @@ export default function Timeline() {
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
         width={VIEWPORT_WIDTH}
-        height={HEIGHT}
+        height={window.innerHeight}
         className={`w-full h-full bg-zinc-900 ${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
       >
         <g transform={`translate(${panX},0)`}>
@@ -229,16 +228,10 @@ export default function Timeline() {
                 y={getLaneY(lane.id) - 30}
                 width={axisEnd - axisStart}
                 height={laneHeights[lane.id]}
-                fill={
-                  lane.color
-                    ? `${lane.color}15`
-                    : "rgba(255,255,255,0.05)"  
-                }
+                fill={laneBackground(lane.color)}
                 // stroke={lane.color ?? "#333"}
                 // strokeOpacity={0.5}
               />
-              
-
               <text
                 x={axisStart + 20}
                 y={getLaneY(lane.id)}
@@ -272,8 +265,8 @@ export default function Timeline() {
                       height={24}
                       fill={
                         event.color ??
-                        categoryColors[event.category] ??
-                        categoryColors.other
+                        laneMap[event.category]?.color ??
+                        "#888888"
                       }
                       rx={4}
                     />
