@@ -6,18 +6,18 @@ import { laneMap } from "../utils/laneLookup";
 import { lanes, laneHeight } from "../config/lanes";
 import { packLaneEvents } from "../utils/packLaneEvents";
 import { laneBackground } from "../utils/laneStyle";
-import { ZoomIn, ZoomOut, ArrowLeft, ArrowRight, SquareSquare } from 'lucide-react';
+import { ZoomIn, ZoomOut, ArrowLeft, ArrowRight, SquareSquare, Hourglass } from 'lucide-react';
 
 const VIEWPORT_WIDTH = 1400;
 
 export default function Timeline() {
-  const svgRef = useRef<SVGSVGElement | null>(null); 
+  const svgRef = useRef<SVGSVGElement | null>(null);
   const [zoom, setZoom] = useState(1);
   const [panX, setPanX] = useState(0);
 
   // =========================
   // FILTERS
-  // =========================  
+  // =========================
   const [visibleLanes, setVisibleLanes] = useState<string[]>(
     lanes.map(lane => lane.id)
   );
@@ -26,13 +26,14 @@ export default function Timeline() {
 
   const visibleLaneDefinitions = lanes.filter(lane =>
     visibleLanes.includes(lane.id)
-  );  
+  );
 
   // =========================
   // LAYOUT CONFIG
   // =========================
+  const HEADER_HEIGHT = 50;
   const ROW_HEIGHT = 35;
-  const BASE_PADDING = 60;
+  const BASE_PADDING = 40;
 
   // number of rows per lane (from packing)
   const laneRowCounts: Record<string, number> = {};
@@ -50,9 +51,15 @@ export default function Timeline() {
   visibleLaneDefinitions.forEach(lane => {
     const rows = laneRowCounts[lane.id] ?? 0;
 
+    // const height = Math.max(
+    //   laneHeight,
+    //   rows * ROW_HEIGHT + BASE_PADDING
+    // );
     const height = Math.max(
       laneHeight,
-      rows * ROW_HEIGHT + BASE_PADDING
+      HEADER_HEIGHT +
+      rows * ROW_HEIGHT +
+      BASE_PADDING
     );
 
     laneStartY[lane.id] = currentY;
@@ -173,15 +180,15 @@ export default function Timeline() {
   // RENDER
   // =========================
   return (
-    <div className="fixed inset-0 bg-zinc-950 overflow-hidden">
+    <div className="fixed inset-0 bg-zinc-950 overflow-hidden select-none">
 
       {/* controls */}
       <div className="absolute top-4 left-0 z-10 flex justify-between gap-2 w-full px-6">
-        <h1 className="text-white text-2xl font-bold">⏳ Timeline of Everything</h1>
+        <h1 className="text-white text-2xl font-bold flex flex-row gap-2 items-center"><Hourglass size={32} color="white" strokeWidth={2} /> Timeline of Everything</h1>
         <div className="flex flex-wrap gap-2 mt-2">
           {lanes.map(lane => {
             const active = visibleLanes.includes(lane.id);
-
+            const Icon = lane.icon;
             return (
               <button
                 key={lane.id}
@@ -192,17 +199,19 @@ export default function Timeline() {
                       : [...prev, lane.id]
                   );
                 }}
-                className={`px-2 py-1 rounded text-sm border ${
+                className={`flex flex-row items-center gap-2 px-2 py-1 rounded text-sm border ${
                   active
                     ? "bg-zinc-700 text-white"
                     : "bg-zinc-900 text-zinc-500"
                 }`}
               >
-                {lane.icon} {lane.label}
+                {/* {lane.icon} */}
+                <Icon size={20} color={active ? "white" : "#71717A"} strokeWidth={2} />
+                {lane.label}
               </button>
             );
           })}
-        </div>        
+        </div>
         <div className="flex flex-row gap-2">
           <button onClick={() => setZoom(z => z * 1.2)} className="bg-zinc-800 text-white px-3 py-2 rounded"><ZoomIn size={20} color="white" strokeWidth={2} /><span className="sr-only">Zoom In</span></button>
           <button onClick={() => setZoom(z => z / 1.2)} className="bg-zinc-800 text-white px-3 py-2 rounded"><ZoomOut size={20} color="white" strokeWidth={2} /><span className="sr-only">Zoom Out</span></button>
@@ -222,7 +231,7 @@ export default function Timeline() {
         onMouseLeave={handleMouseUp}
         width={VIEWPORT_WIDTH}
         height="100%"
-        className={`w-full h-full bg-zinc-900 ${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
+        className={`w-full h-full bg-zinc-900 select-none ${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
       >
         <g transform={`translate(${panX},0)`}>
 
@@ -258,7 +267,9 @@ export default function Timeline() {
           })}
 
           {/* LANES */}
-          {visibleLaneDefinitions.map(lane => (
+          {visibleLaneDefinitions.map(lane => {
+            const Icon = lane.icon;
+            return (
             <g key={lane.id}>
               <rect
                 x={axisStart}
@@ -269,17 +280,36 @@ export default function Timeline() {
                 // stroke={lane.color ?? "#333"}
                 // strokeOpacity={0.5}
               />
-              <text
+
+              <foreignObject
                 x={axisStart + 20}
+                y={getLaneY(lane.id) - 18}
+                width={20}
+                height={20}
+              >
+                <Icon size={20} color="white" strokeWidth={2} />
+              </foreignObject>
+              <text
+                x={axisStart + 50}
                 y={getLaneY(lane.id)}
                 fill="#888"
                 fontSize={18}
                 fontWeight="bold"
               >
-                {lane.icon} {lane.label.toUpperCase()}
+                {/* {lane.icon}  */}
+                {lane.label.toUpperCase()}
+              </text>
+              <text
+                x={axisStart + 20}
+                y={getLaneY(lane.id) + 24}
+                fill="#888"
+                fontSize={16}
+              >
+                {lane.description}
               </text>
             </g>
-          ))}
+            )
+          })}
 
           {/* EVENTS */}
           {visibleLaneDefinitions.map(lane => {
@@ -289,11 +319,11 @@ export default function Timeline() {
               row.map(event => {
                 const x = worldToScreen(event.startYear);
                 const x2 = worldToScreen(event.endYear);
-
                 const width = x2 - x;
-
                 const y =
-                  getLaneY(lane.id) + rowIndex * ROW_HEIGHT;
+                  getLaneY(lane.id) +
+                  HEADER_HEIGHT +
+                  rowIndex * ROW_HEIGHT;
 
                 return (
                   <g key={event.id} transform={`translate(${x}, ${y})`}>
