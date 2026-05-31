@@ -11,10 +11,22 @@ import { ZoomIn, ZoomOut, ArrowLeft, ArrowRight, SquareSquare } from 'lucide-rea
 const VIEWPORT_WIDTH = 1400;
 
 export default function Timeline() {
-  const svgRef = useRef<SVGSVGElement | null>(null);
+  const svgRef = useRef<SVGSVGElement | null>(null); 
   const [zoom, setZoom] = useState(1);
   const [panX, setPanX] = useState(0);
+
+  // =========================
+  // FILTERS
+  // =========================  
+  const [visibleLanes, setVisibleLanes] = useState<string[]>(
+    lanes.map(lane => lane.id)
+  );
+
   const packed = packLaneEvents(events);
+
+  const visibleLaneDefinitions = lanes.filter(lane =>
+    visibleLanes.includes(lane.id)
+  );  
 
   // =========================
   // LAYOUT CONFIG
@@ -25,7 +37,7 @@ export default function Timeline() {
   // number of rows per lane (from packing)
   const laneRowCounts: Record<string, number> = {};
 
-  lanes.forEach(lane => {
+  visibleLaneDefinitions.forEach(lane => {
     laneRowCounts[lane.id] = packed[lane.id]?.length ?? 0;
   });
 
@@ -35,7 +47,7 @@ export default function Timeline() {
 
   let currentY = 160;
 
-  lanes.forEach(lane => {
+  visibleLaneDefinitions.forEach(lane => {
     const rows = laneRowCounts[lane.id] ?? 0;
 
     const height = Math.max(
@@ -166,6 +178,31 @@ export default function Timeline() {
       {/* controls */}
       <div className="absolute top-4 left-0 z-10 flex justify-between gap-2 w-full px-6">
         <h1 className="text-white text-2xl font-bold">⏳ Timeline of Everything</h1>
+        <div className="flex flex-wrap gap-2 mt-2">
+          {lanes.map(lane => {
+            const active = visibleLanes.includes(lane.id);
+
+            return (
+              <button
+                key={lane.id}
+                onClick={() => {
+                  setVisibleLanes(prev =>
+                    prev.includes(lane.id)
+                      ? prev.filter(id => id !== lane.id)
+                      : [...prev, lane.id]
+                  );
+                }}
+                className={`px-2 py-1 rounded text-sm border ${
+                  active
+                    ? "bg-zinc-700 text-white"
+                    : "bg-zinc-900 text-zinc-500"
+                }`}
+              >
+                {lane.icon} {lane.label}
+              </button>
+            );
+          })}
+        </div>        
         <div className="flex flex-row gap-2">
           <button onClick={() => setZoom(z => z * 1.2)} className="bg-zinc-800 text-white px-3 py-2 rounded"><ZoomIn size={20} color="white" strokeWidth={2} /><span className="sr-only">Zoom In</span></button>
           <button onClick={() => setZoom(z => z / 1.2)} className="bg-zinc-800 text-white px-3 py-2 rounded"><ZoomOut size={20} color="white" strokeWidth={2} /><span className="sr-only">Zoom Out</span></button>
@@ -184,7 +221,7 @@ export default function Timeline() {
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
         width={VIEWPORT_WIDTH}
-        height={window.innerHeight}
+        height="100%"
         className={`w-full h-full bg-zinc-900 ${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
       >
         <g transform={`translate(${panX},0)`}>
@@ -221,7 +258,7 @@ export default function Timeline() {
           })}
 
           {/* LANES */}
-          {lanes.map(lane => (
+          {visibleLaneDefinitions.map(lane => (
             <g key={lane.id}>
               <rect
                 x={axisStart}
@@ -245,7 +282,7 @@ export default function Timeline() {
           ))}
 
           {/* EVENTS */}
-          {lanes.map(lane => {
+          {visibleLaneDefinitions.map(lane => {
             const rows = packed[lane.id] ?? [];
 
             return rows.map((row, rowIndex) =>
