@@ -10,5 +10,6 @@ export interface TimelineEvent {
   category: Category;
   region?: string;
   color?: string;
+  teaser?: string;
   description?: string;
 }

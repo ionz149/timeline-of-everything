@@ -7,6 +7,16 @@ interface EventPanelProps {
     onClose: () => void;
 }
 
+// TO DO:
+// event images
+// sources
+// Wikipedia links
+// related events
+// previous/next buttons
+// category badges
+// map locations
+// external references
+
 export default function EventPanel({
     event,
     onClose,
@@ -33,6 +43,12 @@ export default function EventPanel({
                 {" – "}
                 {formatYear(event.endYear)}
             </div>
+
+            {event.region && (
+                <div className="text-zinc-300">
+                    {event.region}
+                </div>
+            )}
 
             {event.description && (
                 <div className="text-zinc-300">
