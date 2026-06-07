@@ -6,15 +6,24 @@ import { laneMap } from "../utils/laneLookup";
 import { lanes, laneHeight } from "../config/lanes";
 import { packLaneEvents } from "../utils/packLaneEvents";
 import { laneBackground } from "../utils/laneStyle";
-import { ZoomIn, ZoomOut, ArrowLeft, ArrowRight, SquareSquare, Hourglass } from 'lucide-react';
+import TimelineHeader from "./TimelineHeader";
 import EventPanel from "./EventPanel";
+import { useTimelineCamera } from "../hooks/useTimelineCamera";
+
 
 const VIEWPORT_WIDTH = 1400;
 
 export default function Timeline() {
   const svgRef = useRef<SVGSVGElement | null>(null);
-  const [zoom, setZoom] = useState(1);
-  const [panX, setPanX] = useState(0);
+  // const [zoom, setZoom] = useState(1);
+  // const [panX, setPanX] = useState(0);
+  const {
+    zoom,
+    setZoom,
+    panX,
+    setPanX,
+    animateToPan,
+  } = useTimelineCamera();
 
   const [selectedEventId, setSelectedEventId] =
     useState<string | null>(null);
@@ -59,10 +68,6 @@ export default function Timeline() {
   visibleLaneDefinitions.forEach(lane => {
     const rows = laneRowCounts[lane.id] ?? 0;
 
-    // const height = Math.max(
-    //   laneHeight,
-    //   rows * ROW_HEIGHT + BASE_PADDING
-    // );
     const height = Math.max(
       laneHeight,
       HEADER_HEIGHT +
@@ -89,6 +94,35 @@ export default function Timeline() {
     const worldZeroX = yearToX(0);
     const centerScreen = VIEWPORT_WIDTH / 2;
     setPanX(centerScreen - worldZeroX * zoom);
+  };
+
+  const jumpToEvent = (eventId: string) => {
+    const event = events.find(
+      e => e.id === eventId
+    );
+
+    if (!event) return;
+
+    const eventX =
+      worldToScreen(event.startYear);
+
+    const centerScreen =
+      VIEWPORT_WIDTH / 2;
+
+    const focusOffset = -250;
+
+    const targetPan =
+      centerScreen +
+      focusOffset -
+      eventX;
+
+    animateToPan(
+      targetPan,
+      600,
+      () => {
+        setSelectedEventId(event.id);
+      }
+    );
   };
 
   // =========================
@@ -200,47 +234,16 @@ export default function Timeline() {
         />
       )}
 
-      {/* controls */}
-      <div
-        className="absolute top-4 left-0 z-30 flex justify-between gap-2 w-full px-6"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h1 className="text-white text-2xl font-bold flex flex-row gap-2 items-center"><Hourglass size={32} color="white" strokeWidth={2} /> Timeline of Everything</h1>
-        <div className="flex flex-wrap gap-2 mt-2">
-          {lanes.map(lane => {
-            const active = visibleLanes.includes(lane.id);
-            const Icon = lane.icon;
-            return (
-              <button
-                key={lane.id}
-                onClick={() => {
-                  setVisibleLanes(prev =>
-                    prev.includes(lane.id)
-                      ? prev.filter(id => id !== lane.id)
-                      : [...prev, lane.id]
-                  );
-                }}
-                className={`flex flex-row items-center gap-2 px-2 py-1 rounded text-sm border ${
-                  active
-                    ? "bg-zinc-700 text-white"
-                    : "bg-zinc-900 text-zinc-500"
-                }`}
-              >
-                {/* {lane.icon} */}
-                <Icon size={20} color={active ? "white" : "#71717A"} strokeWidth={2} />
-                {lane.label}
-              </button>
-            );
-          })}
-        </div>
-        <div className="flex flex-row gap-2">
-          <button onClick={() => setZoom(z => z * 1.2)} className="bg-zinc-800 text-white px-3 py-2 rounded"><ZoomIn size={20} color="white" strokeWidth={2} /><span className="sr-only">Zoom In</span></button>
-          <button onClick={() => setZoom(z => z / 1.2)} className="bg-zinc-800 text-white px-3 py-2 rounded"><ZoomOut size={20} color="white" strokeWidth={2} /><span className="sr-only">Zoom Out</span></button>
-          <button onClick={() => setPanX(x => x - 200)} className="bg-zinc-800 text-white px-3 py-2 rounded"><ArrowLeft size={20} color="white" strokeWidth={2} /><span className="sr-only">Left</span></button>
-          <button onClick={centerOnZero} className="bg-blue-600 text-white px-3 py-2 rounded"><SquareSquare size={20} color="white" strokeWidth={2} /><span className="sr-only">Center</span></button>
-          <button onClick={() => setPanX(x => x + 200)} className="bg-zinc-800 text-white px-3 py-2 rounded"><ArrowRight size={20} color="white" strokeWidth={2} /><span className="sr-only">Right</span></button>
-        </div>
-      </div>
+      <TimelineHeader
+        visibleLanes={visibleLanes}
+        setVisibleLanes={setVisibleLanes}
+        onSelectEvent={jumpToEvent}
+        onZoomIn={() => setZoom(z => z * 1.2)}
+        onZoomOut={() => setZoom(z => z / 1.2)}
+        onPanLeft={() => setPanX(x => x - 200)}
+        onPanRight={() => setPanX(x => x + 200)}
+        onCenter={centerOnZero}
+      />
 
       {/* SVG */}
       <svg
@@ -354,7 +357,7 @@ export default function Timeline() {
                     // onClick={() => setSelectedEventId(event.id)}
                     onClick={(e) => {
                       e.stopPropagation();
-                      setSelectedEventId(event.id);
+                      jumpToEvent(event.id);
                     }}
                     className="cursor-pointer"
                   >

@@ -8,3 +8,7 @@ body,
   margin: 0;
   overflow: hidden;
 }
+
+body {
+  font-family: "Plus Jakarta Sans", sans-serif;
+}
