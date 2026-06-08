@@ -6,7 +6,7 @@ export function useTimelineCamera() {
 
   const animateToPan = (
     targetPanX: number,
-    duration = 500,
+    duration = 750,
     onComplete?: () => void
   ) => {
     const startPan = panX;

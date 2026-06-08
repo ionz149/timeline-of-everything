@@ -13,9 +13,9 @@ A working attempt at building a timeline of all important events that have occur
 
 ## 🏗️ Roadmap
 - [x] Event Detail Panel
-- [ ] Search + jump to event
-- [ ] Camera focus (pan + zoom animation)
-- [ ] Hover preview tooltip
+- [x] Search + jump to event
+- [x] Camera focus (pan + zoom animation)
+- [x] Hover preview tooltip
 - [ ] Lane improvements (grouping, collapse, polish)
 - [ ] Mini-map overview
 - [ ] Google Maps–style navigation overhaul (pan/zoom/scroll model)

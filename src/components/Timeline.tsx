@@ -8,6 +8,7 @@ import { packLaneEvents } from "../utils/packLaneEvents";
 import { laneBackground } from "../utils/laneStyle";
 import TimelineHeader from "./TimelineHeader";
 import EventPanel from "./EventPanel";
+import EventTooltip from "./EventTooltip";
 import { useTimelineCamera } from "../hooks/useTimelineCamera";
 
 
@@ -28,8 +29,15 @@ export default function Timeline() {
   const [selectedEventId, setSelectedEventId] =
     useState<string | null>(null);
 
+  const [hoveredEventId, setHoveredEventId] =
+    useState<string | null>(null);
+
   const selectedEvent = events.find(
     e => e.id === selectedEventId
+  );
+
+  const hoveredEvent = events.find(
+    e => e.id === hoveredEventId
   );
 
   // =========================
@@ -96,7 +104,9 @@ export default function Timeline() {
     setPanX(centerScreen - worldZeroX * zoom);
   };
 
-  const jumpToEvent = (eventId: string) => {
+  const focusEvent = (
+    eventId: string
+  ) => {
     const event = events.find(
       e => e.id === eventId
     );
@@ -109,20 +119,11 @@ export default function Timeline() {
     const centerScreen =
       VIEWPORT_WIDTH / 2;
 
-    const focusOffset = -250;
-
-    const targetPan =
-      centerScreen +
-      focusOffset -
-      eventX;
-
     animateToPan(
-      targetPan,
-      600,
-      () => {
-        setSelectedEventId(event.id);
-      }
+      centerScreen - eventX
     );
+
+    setSelectedEventId(event.id);
   };
 
   // =========================
@@ -234,10 +235,17 @@ export default function Timeline() {
         />
       )}
 
+      {hoveredEvent &&
+        hoveredEvent.id !== selectedEventId && (
+          <EventTooltip
+            event={hoveredEvent}
+          />
+      )}
+
       <TimelineHeader
         visibleLanes={visibleLanes}
         setVisibleLanes={setVisibleLanes}
-        onSelectEvent={jumpToEvent}
+        onSelectEvent={focusEvent}
         onZoomIn={() => setZoom(z => z * 1.2)}
         onZoomOut={() => setZoom(z => z / 1.2)}
         onPanLeft={() => setPanX(x => x - 200)}
@@ -354,10 +362,15 @@ export default function Timeline() {
                   <g
                     key={event.id}
                     transform={`translate(${x}, ${y})`}
-                    // onClick={() => setSelectedEventId(event.id)}
+                    onMouseEnter={() =>
+                      setHoveredEventId(event.id)
+                    }
+                    onMouseLeave={() =>
+                      setHoveredEventId(null)
+                    }
                     onClick={(e) => {
                       e.stopPropagation();
-                      jumpToEvent(event.id);
+                      focusEvent(event.id);
                     }}
                     className="cursor-pointer"
                   >
