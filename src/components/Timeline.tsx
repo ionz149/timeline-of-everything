@@ -47,7 +47,14 @@ export default function Timeline() {
     lanes.map(lane => lane.id)
   );
 
+  const [collapsedLanes, setCollapsedLanes] =
+  useState<string[]>([]);
+
   const packed = packLaneEvents(events);
+
+  const isLaneCollapsed = (
+  laneId: string
+) => collapsedLanes.includes(laneId);
 
   const visibleLaneDefinitions = lanes.filter(lane =>
     visibleLanes.includes(lane.id)
@@ -76,11 +83,20 @@ export default function Timeline() {
   visibleLaneDefinitions.forEach(lane => {
     const rows = laneRowCounts[lane.id] ?? 0;
 
-    const height = Math.max(
-      laneHeight,
-      HEADER_HEIGHT +
-      rows * ROW_HEIGHT +
-      BASE_PADDING
+    // const height = Math.max(
+    //   laneHeight,
+    //   HEADER_HEIGHT +
+    //   rows * ROW_HEIGHT +
+    //   BASE_PADDING
+    // );
+
+    const height = isLaneCollapsed(lane.id)
+    ? HEADER_HEIGHT + 20
+    : Math.max(
+        laneHeight,
+        HEADER_HEIGHT +
+        rows * ROW_HEIGHT +
+        BASE_PADDING
     );
 
     laneStartY[lane.id] = currentY;
@@ -313,39 +329,69 @@ export default function Timeline() {
                 // stroke={lane.color ?? "#333"}
                 // strokeOpacity={0.5}
               />
-
-              <foreignObject
-                x={axisStart + 20}
-                y={getLaneY(lane.id) - 18}
-                width={20}
-                height={20}
+              <g
+                onClick={() => {
+                  setCollapsedLanes(prev =>
+                    prev.includes(lane.id)
+                      ? prev.filter(id => id !== lane.id)
+                      : [...prev, lane.id]
+                  );
+                }}
+                className="cursor-pointer"
               >
-                <Icon size={20} color="white" strokeWidth={2} />
-              </foreignObject>
-              <text
-                x={axisStart + 50}
-                y={getLaneY(lane.id)}
-                fill="#888"
-                fontSize={18}
-                fontWeight="bold"
-              >
-                {/* {lane.icon}  */}
-                {lane.label.toUpperCase()}
-              </text>
-              <text
-                x={axisStart + 20}
-                y={getLaneY(lane.id) + 24}
-                fill="#888"
-                fontSize={16}
-              >
-                {lane.description}
-              </text>
+                <rect
+                  x={axisStart + 10}
+                  y={getLaneY(lane.id) - 35}
+                  width={axisEnd - axisStart}
+                  height={80}
+                  fill="transparent"
+                />
+                <text
+                  x={axisStart + 20}
+                  y={getLaneY(lane.id)}
+                  fill="white"
+                  fontSize={18}
+                >
+                  {isLaneCollapsed(lane.id) ? "+" : "−"}
+                </text>
+                <foreignObject
+                  x={axisStart + 40}
+                  y={getLaneY(lane.id) - 18}
+                  width={20}
+                  height={20}
+                >
+                  <Icon size={20} color="white" strokeWidth={2} />
+                </foreignObject>
+                <text
+                  x={axisStart + 70}
+                  y={getLaneY(lane.id)}
+                  fill="#888"
+                  fontSize={18}
+                  fontWeight="bold"
+                >
+                  {/* {lane.icon}  */}
+                  {lane.label.toUpperCase()}
+                </text>
+                <text
+                  x={axisStart + 40}
+                  y={getLaneY(lane.id) + 24}
+                  fill="#888"
+                  fontSize={16}
+                >
+                  {lane.description}
+                </text>
+              </g>
             </g>
             )
           })}
 
           {/* EVENTS */}
           {visibleLaneDefinitions.map(lane => {
+            // const rows = packed[lane.id] ?? [];
+            if (isLaneCollapsed(lane.id)) {
+              return null;
+            }
+
             const rows = packed[lane.id] ?? [];
 
             return rows.map((row, rowIndex) =>
