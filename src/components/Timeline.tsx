@@ -11,7 +11,6 @@ import EventPanel from "./EventPanel";
 import EventTooltip from "./EventTooltip";
 import { useTimelineCamera } from "../hooks/useTimelineCamera";
 
-
 const VIEWPORT_WIDTH = 1400;
 
 export default function Timeline() {
@@ -43,22 +42,20 @@ export default function Timeline() {
   // =========================
   // FILTERS
   // =========================
-  const [visibleLanes, setVisibleLanes] = useState<string[]>(
-    lanes.map(lane => lane.id)
-  );
-
-  const [collapsedLanes, setCollapsedLanes] =
-  useState<string[]>([]);
-
+  const [visibleLanes, setVisibleLanes] = useState<string[]>(lanes.map(lane => lane.id));
+  const [collapsedLanes, setCollapsedLanes] =  useState<string[]>([]);
   const packed = packLaneEvents(events);
-
-  const isLaneCollapsed = (
-  laneId: string
-) => collapsedLanes.includes(laneId);
-
-  const visibleLaneDefinitions = lanes.filter(lane =>
-    visibleLanes.includes(lane.id)
-  );
+  const isLaneCollapsed = (laneId: string) => collapsedLanes.includes(laneId);
+  const toggleLane = (
+    laneId: string
+  ) => {
+    setCollapsedLanes(prev =>
+      prev.includes(laneId)
+        ? prev.filter(id => id !== laneId)
+        : [...prev, laneId]
+    );
+  };
+  const visibleLaneDefinitions = lanes.filter(lane => visibleLanes.includes(lane.id));
 
   // =========================
   // LAYOUT CONFIG
@@ -329,7 +326,7 @@ export default function Timeline() {
                 // stroke={lane.color ?? "#333"}
                 // strokeOpacity={0.5}
               />
-              <g
+              {/* <g
                 onClick={() => {
                   setCollapsedLanes(prev =>
                     prev.includes(lane.id)
@@ -369,7 +366,6 @@ export default function Timeline() {
                   fontSize={18}
                   fontWeight="bold"
                 >
-                  {/* {lane.icon}  */}
                   {lane.label.toUpperCase()}
                 </text>
                 <text
@@ -380,7 +376,7 @@ export default function Timeline() {
                 >
                   {lane.description}
                 </text>
-              </g>
+              </g> */}
             </g>
             )
           })}
@@ -439,6 +435,79 @@ export default function Timeline() {
             );
           })}
 
+        </g>
+        {/* STICKY LANE HEADERS */}
+        <g>
+          {visibleLaneDefinitions.map(lane => {
+            const Icon = lane.icon;
+
+            const headerX = 20;
+            const headerY = getLaneY(lane.id);
+
+            const textWidth =
+              Math.max(
+                lane.label.length,
+                lane.description.length
+              ) * 9;
+
+            return (
+              <g
+                key={`header-${lane.id}`}
+                onClick={() => toggleLane(lane.id)}
+                className="cursor-pointer"
+              >
+                <rect
+                  x={headerX - 12}
+                  y={headerY - 28}
+                  width={axisEnd - axisStart}
+                  height={60}
+                  rx={8}
+                  fill="rgba(24,24,27,0)"
+                  // stroke={lane.color}
+                  // strokeOpacity={0.3}
+                />
+                <text
+                  x={headerX}
+                  y={headerY - 3}
+                  fill="white"
+                  fontSize={18}
+                >
+                  {isLaneCollapsed(lane.id) ? "+" : "−"}
+                </text>
+                <foreignObject
+                  x={headerX + 20}
+                  y={headerY - 18}
+                  width={20}
+                  height={20}
+                >
+                  <Icon
+                    size={20}
+                    color="white"
+                    strokeWidth={2}
+                  />
+                </foreignObject>
+
+                <text
+                  x={headerX + 50}
+                  y={headerY}
+                  fill="#888"
+                  fontSize={18}
+                  fontWeight="bold"
+                >
+                  {lane.label.toUpperCase()}
+                </text>
+
+                <text
+                  x={headerX}
+                  y={headerY + 24}
+                  fill="#888"
+                  fontSize={16}
+                >
+                  {lane.description}
+                </text>
+              </g>
+            );
+          })}
         </g>
       </svg>
     </div>

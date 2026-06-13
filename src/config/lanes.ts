@@ -4,7 +4,7 @@ export const lanes = [
     {
         id: "empires",
         label: "Empires",
-        color: "#ff0000",
+        color: "#CB1010",
         icon: Crown,
         description: "The rise, expansion, governance, and collapse of kingdoms, empires, dynasties, and civilizations.",
         enabled: true
@@ -12,7 +12,7 @@ export const lanes = [
     {
         id: "warfare",
         label: "Warfare",
-        color: "",
+        color: "#107ACB",
         icon: Swords,
         description: "Armed conflicts, military campaigns, battles, revolutions, and major developments in warfare.",
         enabled: true
@@ -20,7 +20,7 @@ export const lanes = [
     {
         id: "science",
         label: "Science",
-        color: "",
+        color: "#0EA222",
         icon: FlaskConical,
         description: "Discoveries, theories, research breakthroughs, and advances in understanding the natural world.",
         enabled: true
@@ -28,7 +28,7 @@ export const lanes = [
     {
         id: "politics",
         label: "Politics",
-        color: "",
+        color: "#8626ED",
         icon: Earth,
         description: "Governments, laws, political movements, diplomacy, elections, treaties, and statecraft.",
         enabled: true
@@ -36,7 +36,7 @@ export const lanes = [
     {
         id: "culture",
         label: "Culture",
-        color: "",
+        color: "#CB9310",
         icon: Drama,
         description: "Art, literature, religion, philosophy, language, entertainment, and social movements.",
         enabled: true
@@ -44,7 +44,7 @@ export const lanes = [
     {
         id: "economy",
         label: "Economy",
-        color: "",
+        color: "#FFA100",
         icon: ChartLine,
         description: "Trade, finance, markets, industry, economic systems, and major shifts in wealth and commerce.",
         enabled: true
@@ -60,7 +60,7 @@ export const lanes = [
     {
         id: "wonders",
         label: "Wonders",
-        color: "",
+        color: "#EAED26",
         icon: Landmark,
         description: "Extraordinary monuments, architectural achievements, natural wonders, and iconic landmarks.",
         enabled: true
