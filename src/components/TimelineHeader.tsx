@@ -15,6 +15,8 @@ interface TimelineHeaderProps {
   onPanLeft: () => void;
   onPanRight: () => void;
   onCenter: () => void;
+  onOpenAll: () => void;
+  onCloseAll: () => void;
 }
 
 export default function TimelineHeader({
@@ -26,6 +28,8 @@ export default function TimelineHeader({
   onPanLeft,
   onPanRight,
   onCenter,
+  onOpenAll,
+  onCloseAll,
 }: TimelineHeaderProps) {
   return (
     <div
@@ -51,6 +55,8 @@ export default function TimelineHeader({
         onPanLeft={onPanLeft}
         onPanRight={onPanRight}
         onCenter={onCenter}
+        onOpenAll={onOpenAll}
+        onCloseAll={onCloseAll}
       />
     </div>
   );

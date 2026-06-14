@@ -3,7 +3,9 @@ import {
   ZoomOut,
   ArrowLeft,
   ArrowRight,
-  SquareSquare
+  SquareSquare,
+  ChevronsDown,
+  ChevronsUp
 } from "lucide-react";
 
 interface TimelineControlsProps {
@@ -12,6 +14,8 @@ interface TimelineControlsProps {
   onPanLeft: () => void;
   onPanRight: () => void;
   onCenter: () => void;
+  onOpenAll: () => void;
+  onCloseAll: () => void;
 }
 
 export default function TimelineControls({
@@ -19,7 +23,9 @@ export default function TimelineControls({
   onZoomOut,
   onPanLeft,
   onPanRight,
-  onCenter
+  onCenter,
+  onOpenAll,
+  onCloseAll
 }: TimelineControlsProps) {
   return (
     <div className="flex flex-row gap-2">
@@ -61,6 +67,34 @@ export default function TimelineControls({
       >
         <ArrowRight size={20} color="white" strokeWidth={2} />
         <span className="sr-only">Right</span>
+      </button>
+
+      <button
+        onClick={onOpenAll}
+        className="bg-zinc-800 text-white px-3 py-2 rounded"
+      >
+        <ChevronsDown
+          size={20}
+          color="white"
+          strokeWidth={2}
+        />
+        <span className="sr-only">
+          Open All
+        </span>
+      </button>
+
+      <button
+        onClick={onCloseAll}
+        className="bg-zinc-800 text-white px-3 py-2 rounded"
+      >
+        <ChevronsUp
+          size={20}
+          color="white"
+          strokeWidth={2}
+        />
+        <span className="sr-only">
+          Close All
+        </span>
       </button>
     </div>
   );

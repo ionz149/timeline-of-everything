@@ -43,7 +43,13 @@ export default function Timeline() {
   // FILTERS
   // =========================
   const [visibleLanes, setVisibleLanes] = useState<string[]>(lanes.map(lane => lane.id));
-  const [collapsedLanes, setCollapsedLanes] =  useState<string[]>([]);
+  // const [collapsedLanes, setCollapsedLanes] =  useState<string[]>([]);
+  const [collapsedLanes, setCollapsedLanes] =
+  useState<string[]>(
+    lanes
+      .slice(1)
+      .map(lane => lane.id)
+  );
   const packed = packLaneEvents(events);
   const isLaneCollapsed = (laneId: string) => collapsedLanes.includes(laneId);
   const toggleLane = (
@@ -55,7 +61,32 @@ export default function Timeline() {
         : [...prev, laneId]
     );
   };
+  const openAllLanes = () => {
+    setCollapsedLanes([]);
+  };
+  const closeAllLanes = () => {
+    setCollapsedLanes(
+      visibleLaneDefinitions.map(
+        lane => lane.id
+      )
+    );
+  };
   const visibleLaneDefinitions = lanes.filter(lane => visibleLanes.includes(lane.id));
+
+  useEffect(() => {
+    if (visibleLaneDefinitions.length === 0) {
+      return;
+    }
+
+    const firstVisibleLaneId =
+      visibleLaneDefinitions[0].id;
+
+    setCollapsedLanes(prev =>
+      prev.filter(
+        id => id !== firstVisibleLaneId
+      )
+    );
+  }, [visibleLanes]);
 
   // =========================
   // LAYOUT CONFIG
@@ -124,10 +155,35 @@ export default function Timeline() {
       e => e.id === eventId
     );
 
-    if (!event) return;
+    if (!event) {
+      return;
+    }
 
+    // ====================
+    // OPEN EVENT LANE
+    // ====================
+    setCollapsedLanes(prev => {
+      if (
+        !prev.includes(
+          event.category
+        )
+      ) {
+        return prev;
+      }
+
+      return prev.filter(
+        id =>
+          id !== event.category
+      );
+    });
+
+    // ====================
+    // CAMERA
+    // ====================
     const eventX =
-      worldToScreen(event.startYear);
+      worldToScreen(
+        event.startYear
+      );
 
     const centerScreen =
       VIEWPORT_WIDTH / 2;
@@ -136,7 +192,12 @@ export default function Timeline() {
       centerScreen - eventX
     );
 
-    setSelectedEventId(event.id);
+    // ====================
+    // PANEL
+    // ====================
+    setSelectedEventId(
+      event.id
+    );
   };
 
   // =========================
@@ -264,6 +325,8 @@ export default function Timeline() {
         onPanLeft={() => setPanX(x => x - 200)}
         onPanRight={() => setPanX(x => x + 200)}
         onCenter={centerOnZero}
+        onOpenAll={openAllLanes}
+        onCloseAll={closeAllLanes}
       />
 
       {/* SVG */}
