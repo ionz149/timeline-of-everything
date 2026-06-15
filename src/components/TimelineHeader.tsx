@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { SlidersHorizontal } from "lucide-react";
 import EventSearch from "./EventSearch";
 import LaneFilters from "./LaneFilters";
@@ -20,6 +20,30 @@ export default function TimelineHeader({
   const [showLaneFilters, setShowLaneFilters] =
     useState(false);
 
+  const filtersRef = useRef<HTMLDivElement | null>(null);
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+
+      if (
+        filtersRef.current?.contains(target) ||
+        buttonRef.current?.contains(target)
+      ) {
+        return;
+      }
+
+      setShowLaneFilters(false);
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
   return (
     <div
       className="timeline-header bg-zinc-900 border-b-zinc-500 border absolute top-0 left-0 z-30 w-full px-6 py-4"
@@ -35,6 +59,7 @@ export default function TimelineHeader({
         />
 
         <button
+          ref={buttonRef}
           onClick={() =>
             setShowLaneFilters(prev => !prev)
           }
@@ -54,7 +79,7 @@ export default function TimelineHeader({
         </button>
       </div>
 
-      <div className={`absolute right-0  overflow-hidden top-full  p-4 flex transition-transform duration-300 ease-in-out ${
+      <div ref={filtersRef} className={`absolute right-0  overflow-hidden top-full  p-4 flex transition-transform duration-300 ease-in-out ${
             showLaneFilters
               ? "translate-x-0"
               : "translate-x-full"
