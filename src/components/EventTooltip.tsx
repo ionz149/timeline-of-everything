@@ -1,4 +1,4 @@
-import type { TimelineEvent } from "../types/events";
+import type { TimelineEvent } from "../types/event";
 import { formatYear } from "../utils/formatYear";
 
 interface EventTooltipProps {

@@ -31,6 +31,9 @@ export default function Timeline() {
   const [hoveredEventId, setHoveredEventId] =
     useState<string | null>(null);
 
+  const [highlightedLaneId, setHighlightedLaneId] =
+    useState<string | null>(null);
+
   const selectedEvent = events.find(
     e => e.id === selectedEventId
   );
@@ -52,6 +55,26 @@ export default function Timeline() {
   );
   const packed = packLaneEvents(events);
   const isLaneCollapsed = (laneId: string) => collapsedLanes.includes(laneId);
+  const revealLane = (laneId: string) => {
+    setVisibleLanes(prev =>
+      prev.includes(laneId)
+        ? prev
+        : [...prev, laneId]
+    );
+
+    setCollapsedLanes(prev =>
+      prev.filter(id => id !== laneId)
+    );
+
+    setHighlightedLaneId(laneId);
+
+    setTimeout(() => {
+      setHighlightedLaneId(null);
+    }, 2000);
+
+  };
+
+  const visibleLaneDefinitions = lanes.filter(lane => visibleLanes.includes(lane.id));
   const toggleLane = (
     laneId: string
   ) => {
@@ -61,17 +84,24 @@ export default function Timeline() {
         : [...prev, laneId]
     );
   };
-  const openAllLanes = () => {
-    setCollapsedLanes([]);
+  const areAllLanesOpen =
+    visibleLaneDefinitions.every(
+      lane =>
+        !collapsedLanes.includes(
+          lane.id
+        )
+  );
+  const toggleAllLanes = () => {
+    if (areAllLanesOpen) {
+      setCollapsedLanes(
+        visibleLaneDefinitions.map(
+          lane => lane.id
+        )
+      );
+    } else {
+      setCollapsedLanes([]);
+    }
   };
-  const closeAllLanes = () => {
-    setCollapsedLanes(
-      visibleLaneDefinitions.map(
-        lane => lane.id
-      )
-    );
-  };
-  const visibleLaneDefinitions = lanes.filter(lane => visibleLanes.includes(lane.id));
 
   useEffect(() => {
     if (visibleLaneDefinitions.length === 0) {
@@ -188,9 +218,18 @@ export default function Timeline() {
     const centerScreen =
       VIEWPORT_WIDTH / 2;
 
-    animateToPan(
-      centerScreen - eventX
-    );
+    // animateToPan(
+    //   centerScreen - eventX
+    // );
+    revealLane(event.category);
+
+    setTimeout(() => {
+      animateToPan(
+        centerScreen - eventX
+      );
+
+      setSelectedEventId(event.id);
+    }, 250);
 
     // ====================
     // PANEL
@@ -325,8 +364,8 @@ export default function Timeline() {
         onPanLeft={() => setPanX(x => x - 200)}
         onPanRight={() => setPanX(x => x + 200)}
         onCenter={centerOnZero}
-        onOpenAll={openAllLanes}
-        onCloseAll={closeAllLanes}
+        onToggleLanes={toggleAllLanes}
+        areAllLanesOpen={areAllLanesOpen}
       />
 
       {/* SVG */}
@@ -526,8 +565,6 @@ export default function Timeline() {
                   height={60}
                   rx={8}
                   fill="rgba(24,24,27,0)"
-                  // stroke={lane.color}
-                  // strokeOpacity={0.3}
                 />
                 <text
                   x={headerX}

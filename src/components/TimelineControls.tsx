@@ -14,8 +14,8 @@ interface TimelineControlsProps {
   onPanLeft: () => void;
   onPanRight: () => void;
   onCenter: () => void;
-  onOpenAll: () => void;
-  onCloseAll: () => void;
+  onToggleLanes: () => void;
+  areAllLanesOpen: boolean;
 }
 
 export default function TimelineControls({
@@ -24,8 +24,8 @@ export default function TimelineControls({
   onPanLeft,
   onPanRight,
   onCenter,
-  onOpenAll,
-  onCloseAll
+  onToggleLanes,
+  areAllLanesOpen
 }: TimelineControlsProps) {
   return (
     <div className="flex flex-row gap-2">
@@ -70,30 +70,27 @@ export default function TimelineControls({
       </button>
 
       <button
-        onClick={onOpenAll}
+        onClick={onToggleLanes}
         className="bg-zinc-800 text-white px-3 py-2 rounded"
       >
-        <ChevronsDown
-          size={20}
-          color="white"
-          strokeWidth={2}
-        />
-        <span className="sr-only">
-          Open All
-        </span>
-      </button>
+        {areAllLanesOpen ? (
+          <ChevronsUp
+            size={20}
+            color="white"
+            strokeWidth={2}
+          />
+        ) : (
+          <ChevronsDown
+            size={20}
+            color="white"
+            strokeWidth={2}
+          />
+        )}
 
-      <button
-        onClick={onCloseAll}
-        className="bg-zinc-800 text-white px-3 py-2 rounded"
-      >
-        <ChevronsUp
-          size={20}
-          color="white"
-          strokeWidth={2}
-        />
         <span className="sr-only">
-          Close All
+          {areAllLanesOpen
+            ? "Close All"
+            : "Open All"}
         </span>
       </button>
     </div>
