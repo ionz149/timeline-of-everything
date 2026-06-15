@@ -1,6 +1,7 @@
+import { useState } from "react";
+import { SlidersHorizontal } from "lucide-react";
 import EventSearch from "./EventSearch";
 import LaneFilters from "./LaneFilters";
-import TimelineControls from "./TimelineControls";
 
 interface TimelineHeaderProps {
   visibleLanes: string[];
@@ -9,55 +10,64 @@ interface TimelineHeaderProps {
   >;
 
   onSelectEvent: (eventId: string) => void;
-
-  onZoomIn: () => void;
-  onZoomOut: () => void;
-  onPanLeft: () => void;
-  onPanRight: () => void;
-  onCenter: () => void;
-  onToggleLanes: () => void;
-  areAllLanesOpen: boolean;
 }
 
 export default function TimelineHeader({
   visibleLanes,
   setVisibleLanes,
-  onSelectEvent,
-  onZoomIn,
-  onZoomOut,
-  onPanLeft,
-  onPanRight,
-  onCenter,
-  onToggleLanes,
-  areAllLanesOpen
+  onSelectEvent
 }: TimelineHeaderProps) {
+  const [showLaneFilters, setShowLaneFilters] =
+    useState(false);
+
   return (
     <div
-      className="absolute top-4 left-0 z-30 flex justify-between gap-2 w-full px-6"
+      className="timeline-header bg-zinc-900 border-b-zinc-500 border absolute top-0 left-0 z-30 w-full px-6 py-4"
       onClick={(e) => e.stopPropagation()}
     >
-      <h1 className="text-white text-2xl font-bold flex flex-row gap-2 items-center">
-        Timeline of Everything
-      </h1>
+      <div className="flex items-start justify-between gap-2 w-full">
+        <h1 className="text-white text-2xl font-bold flex flex-row gap-2 items-center m-0">
+          Timeline of Everything
+        </h1>
 
-      <EventSearch
-        onSelectEvent={onSelectEvent}
-      />
+        <EventSearch
+          onSelectEvent={onSelectEvent}
+        />
 
-      <LaneFilters
-        visibleLanes={visibleLanes}
-        setVisibleLanes={setVisibleLanes}
-      />
+        <button
+          onClick={() =>
+            setShowLaneFilters(prev => !prev)
+          }
+          className="bg-zinc-800 text-white px-3 py-2 rounded flex items-center gap-2"
+        >
+          <SlidersHorizontal
+            size={20}
+            color="white"
+            strokeWidth={2}
+          />
 
-      <TimelineControls
-        onZoomIn={onZoomIn}
-        onZoomOut={onZoomOut}
-        onPanLeft={onPanLeft}
-        onPanRight={onPanRight}
-        onCenter={onCenter}
-        onToggleLanes={onToggleLanes}
-        areAllLanesOpen={areAllLanesOpen}
-      />
+          {/* <span>
+            {showLaneFilters
+              ? "Hide Filters"
+              : "Show Filters"}
+          </span> */}
+        </button>
+      </div>
+
+      <div className={`absolute right-0  overflow-hidden top-full  p-4 flex transition-transform duration-300 ease-in-out ${
+            showLaneFilters
+              ? "translate-x-0"
+              : "translate-x-full"
+          }`}>
+        <div
+          className="bg-zinc-800 rounded-md p-4"
+        >
+          <LaneFilters
+            visibleLanes={visibleLanes}
+            setVisibleLanes={setVisibleLanes}
+          />
+        </div>
+      </div>
     </div>
   );
 }

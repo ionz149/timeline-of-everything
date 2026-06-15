@@ -12,7 +12,7 @@ export default function LaneFilters({
   setVisibleLanes,
 }: LaneFiltersProps) {
   return (
-    <div className="flex flex-wrap gap-2 mt-2">
+    <div className="flex flex-col gap-2">
       {lanes.map(lane => {
         const active = visibleLanes.includes(lane.id);
         const Icon = lane.icon;

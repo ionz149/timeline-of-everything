@@ -7,6 +7,7 @@ import { lanes, laneHeight } from "../config/lanes";
 import { packLaneEvents } from "../utils/packLaneEvents";
 import { laneBackground } from "../utils/laneStyle";
 import TimelineHeader from "./TimelineHeader";
+import TimelineControls from "./TimelineControls";
 import EventPanel from "./EventPanel";
 import EventTooltip from "./EventTooltip";
 import { useTimelineCamera } from "../hooks/useTimelineCamera";
@@ -359,14 +360,22 @@ export default function Timeline() {
         visibleLanes={visibleLanes}
         setVisibleLanes={setVisibleLanes}
         onSelectEvent={focusEvent}
-        onZoomIn={() => setZoom(z => z * 1.2)}
-        onZoomOut={() => setZoom(z => z / 1.2)}
-        onPanLeft={() => setPanX(x => x - 200)}
-        onPanRight={() => setPanX(x => x + 200)}
-        onCenter={centerOnZero}
-        onToggleLanes={toggleAllLanes}
-        areAllLanesOpen={areAllLanesOpen}
       />
+
+      <div
+        className="absolute bottom-6 right-6 z-30"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <TimelineControls
+          onZoomIn={() => setZoom(z => z * 1.2)}
+          onZoomOut={() => setZoom(z => z / 1.2)}
+          onPanLeft={() => setPanX(x => x - 200)}
+          onPanRight={() => setPanX(x => x + 200)}
+          onCenter={centerOnZero}
+          onToggleLanes={toggleAllLanes}
+          areAllLanesOpen={areAllLanesOpen}
+        />
+      </div>
 
       {/* SVG */}
       <svg
@@ -526,7 +535,7 @@ export default function Timeline() {
                         laneMap[event.category]?.color ??
                         "#888888"
                       }
-                      rx={4}
+                      rx={12}
                     />
                     <text x={8} y={16} fill="white" fontSize={scaledFontSize()}>
                       {event.title}

@@ -6,9 +6,21 @@ body,
   width: 100%;
   height: 100%;
   margin: 0;
+  padding: 0;
   overflow: hidden;
 }
 
 body {
   font-family: "Plus Jakarta Sans", sans-serif;
+}
+
+/* .timeline-header {
+  @apply bg-white absolute top-4 left-0 z-30 flex justify-between gap-2 w-full px-6;
+  h1 {
+    @apply text-black text-2xl font-bold flex flex-row gap-2 items-center;
+  }
+} */
+
+.event-tooltip {
+  @apply pointer-events-none absolute z-50 left-6 bottom-6 max-w-sm rounded-lg border border-zinc-700 bg-zinc-900 p-4 shadow-xl;
 }
