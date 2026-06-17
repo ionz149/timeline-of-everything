@@ -3,10 +3,12 @@ import { events } from "../data/events";
 
 interface EventSearchProps {
   onSelectEvent: (eventId: string) => void;
+  onFocusSearch?: () => void;
 }
 
 export default function EventSearch({
   onSelectEvent,
+  onFocusSearch,
 }: EventSearchProps) {
   const [searchText, setSearchText] = useState("");
 
@@ -31,6 +33,7 @@ export default function EventSearch({
         placeholder="Search events..."
         value={searchText}
         onChange={(e) => setSearchText(e.target.value)}
+        onFocus={onFocusSearch}
         className="w-64 px-3 py-2 rounded bg-zinc-800 text-white border border-zinc-700"
       />
 

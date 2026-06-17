@@ -11,26 +11,26 @@ export function packLaneEvents(events: TimelineEvent[]) {
   };
 
   for (const event of events) {
-    const lane = event.category;
-
-    if (!lanes[lane]) {
-      lanes[lane] = [];
-    }
-
-    let placed = false;
-
-    for (const row of lanes[lane]) {
-      const overlap = row.some(e => isOverlap(e, event));
-
-      if (!overlap) {
-        row.push(event);
-        placed = true;
-        break;
+    for (const lane of event.categories) {
+      if (!lanes[lane]) {
+        lanes[lane] = [];
       }
-    }
 
-    if (!placed) {
-      lanes[lane].push([event]);
+      let placed = false;
+
+      for (const row of lanes[lane]) {
+        const overlap = row.some(e => isOverlap(e, event));
+
+        if (!overlap) {
+          row.push(event);
+          placed = true;
+          break;
+        }
+      }
+
+      if (!placed) {
+        lanes[lane].push([event]);
+      }
     }
   }
 

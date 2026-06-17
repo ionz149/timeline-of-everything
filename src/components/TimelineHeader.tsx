@@ -5,17 +5,20 @@ import LaneFilters from "./LaneFilters";
 
 interface TimelineHeaderProps {
   visibleLanes: string[];
+
   setVisibleLanes: React.Dispatch<
     React.SetStateAction<string[]>
   >;
 
   onSelectEvent: (eventId: string) => void;
+  onFocusSearch: () => void;
 }
 
 export default function TimelineHeader({
   visibleLanes,
   setVisibleLanes,
-  onSelectEvent
+  onSelectEvent,
+  onFocusSearch,
 }: TimelineHeaderProps) {
   const [showLaneFilters, setShowLaneFilters] =
     useState(false);
@@ -45,10 +48,7 @@ export default function TimelineHeader({
   }, []);
 
   return (
-    <div
-      className="timeline-header bg-zinc-900 border-b-zinc-500 border absolute top-0 left-0 z-30 w-full px-6 py-4"
-      onClick={(e) => e.stopPropagation()}
-    >
+    <div className="timeline-header bg-zinc-900 border-b-zinc-500 border absolute top-0 left-0 z-30 w-full px-6 py-4">
       <div className="flex items-start justify-between gap-2 w-full">
         <h1 className="text-white text-2xl font-bold flex flex-row gap-2 items-center m-0">
           Timeline of Everything
@@ -56,6 +56,7 @@ export default function TimelineHeader({
 
         <EventSearch
           onSelectEvent={onSelectEvent}
+          onFocusSearch={onFocusSearch}
         />
 
         <button

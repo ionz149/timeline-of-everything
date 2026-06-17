@@ -75,6 +75,24 @@ export default function Timeline() {
 
   };
 
+const visibleEvents = events
+  .filter(event =>
+    event.categories.some(category =>
+      visibleLanes.includes(category)
+    )
+  )
+  .sort((a, b) => a.startYear - b.startYear);
+
+  const selectedEventIndex = visibleEvents.findIndex(
+    event => event.id === selectedEventId
+  );
+
+  const hasPreviousEvent = selectedEventIndex > 0;
+
+  const hasNextEvent =
+    selectedEventIndex >= 0 &&
+    selectedEventIndex < visibleEvents.length - 1;
+
   const visibleLaneDefinitions = lanes.filter(lane => visibleLanes.includes(lane.id));
   const toggleLane = (
     laneId: string
@@ -190,13 +208,19 @@ export default function Timeline() {
       return;
     }
 
+    const primaryCategory = event.categories[0];
+
+    if (!primaryCategory) {
+      return;
+    }
+
     // ====================
     // OPEN EVENT LANE
     // ====================
     setCollapsedLanes(prev => {
       if (
         !prev.includes(
-          event.category
+          primaryCategory
         )
       ) {
         return prev;
@@ -204,7 +228,7 @@ export default function Timeline() {
 
       return prev.filter(
         id =>
-          id !== event.category
+          id !== primaryCategory
       );
     });
 
@@ -222,7 +246,7 @@ export default function Timeline() {
     // animateToPan(
     //   centerScreen - eventX
     // );
-    revealLane(event.category);
+    revealLane(primaryCategory);
 
     setTimeout(() => {
       animateToPan(
@@ -237,6 +261,26 @@ export default function Timeline() {
     // ====================
     setSelectedEventId(
       event.id
+    );
+  };
+
+  const goToPreviousEvent = () => {
+    if (!hasPreviousEvent) {
+      return;
+    }
+
+    focusEvent(
+      visibleEvents[selectedEventIndex - 1].id
+    );
+  };
+
+  const goToNextEvent = () => {
+    if (!hasNextEvent) {
+      return;
+    }
+
+    focusEvent(
+      visibleEvents[selectedEventIndex + 1].id
     );
   };
 
@@ -343,10 +387,16 @@ export default function Timeline() {
     >
 
       {selectedEvent && (
-        <EventPanel
-          event={selectedEvent}
-          onClose={() => setSelectedEventId(null)}
-        />
+        <div onClick={(e) => e.stopPropagation()}>
+          <EventPanel
+            event={selectedEvent}
+            onClose={() => setSelectedEventId(null)}
+            onPrevious={goToPreviousEvent}
+            onNext={goToNextEvent}
+            hasPrevious={hasPreviousEvent}
+            hasNext={hasNextEvent}
+          />
+        </div>
       )}
 
       {hoveredEvent &&
@@ -360,6 +410,7 @@ export default function Timeline() {
         visibleLanes={visibleLanes}
         setVisibleLanes={setVisibleLanes}
         onSelectEvent={focusEvent}
+        onFocusSearch={() => setSelectedEventId(null)}
       />
 
       <div
@@ -532,7 +583,7 @@ export default function Timeline() {
                       height={24}
                       fill={
                         event.color ??
-                        laneMap[event.category]?.color ??
+                        lane.color ??
                         "#888888"
                       }
                       rx={12}
