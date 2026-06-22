@@ -14,6 +14,12 @@ import { useTimelineCamera } from "../hooks/useTimelineCamera";
 
 const VIEWPORT_WIDTH = 1400;
 
+const clamp = (
+  value: number,
+  min: number,
+  max: number
+) => Math.min(Math.max(value, min), max);
+
 export default function Timeline() {
   const svgRef = useRef<SVGSVGElement | null>(null);
   // const [zoom, setZoom] = useState(1);
@@ -23,6 +29,8 @@ export default function Timeline() {
     setZoom,
     panX,
     setPanX,
+    panY,
+    setPanY,
     animateToPan,
   } = useTimelineCamera();
 
@@ -144,6 +152,9 @@ const visibleEvents = events
   const ROW_HEIGHT = 35;
   const BASE_PADDING = 40;
 
+  const STICKY_AXIS_Y = 96;
+  const EDGE_PADDING = 80;
+
   // number of rows per lane (from packing)
   const laneRowCounts: Record<string, number> = {};
 
@@ -189,12 +200,15 @@ const visibleEvents = events
   // =========================
   const [isDragging, setIsDragging] = useState(false);
   const [lastX, setLastX] = useState(0);
+  const [lastY, setLastY] = useState(0);
   const [velocityX, setVelocityX] = useState(0);
+  const [velocityY, setVelocityY] = useState(0);
 
   const centerOnZero = () => {
     const worldZeroX = yearToX(0);
     const centerScreen = VIEWPORT_WIDTH / 2;
-    setPanX(centerScreen - worldZeroX * zoom);
+    // setPanX(centerScreen - worldZeroX * zoom);
+    setPanX(clampPanX(centerScreen - worldZeroX * zoom));
   };
 
   const focusEvent = (
@@ -316,17 +330,25 @@ const visibleEvents = events
   const handleMouseDown = (e: React.MouseEvent<SVGSVGElement>) => {
     setIsDragging(true);
     setLastX(e.clientX);
+    setLastY(e.clientY);
   };
 
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
     if (!isDragging) return;
 
     const deltaX = e.clientX - lastX;
+    const deltaY = e.clientY - lastY;
 
-    setPanX(prev => prev + deltaX);
+    // setPanX(prev => prev + deltaX);
+    // setPanY(prev => prev + deltaY);
+    setPanX(prev => clampPanX(prev + deltaX));
+    setPanY(prev => clampPanY(prev + deltaY));
+
     setVelocityX(deltaX);
+    setVelocityY(deltaY);
 
     setLastX(e.clientX);
+    setLastY(e.clientY);
   };
 
   const handleMouseUp = () => {
@@ -336,15 +358,26 @@ const visibleEvents = events
   // inertia
   useEffect(() => {
     if (isDragging) return;
-    if (Math.abs(velocityX) < 0.1) return;
+
+    if (
+      Math.abs(velocityX) < 0.1 &&
+      Math.abs(velocityY) < 0.1
+    ) {
+      return;
+    }
 
     const frame = requestAnimationFrame(() => {
-      setPanX(prev => prev + velocityX);
+      // setPanX(prev => prev + velocityX);
+      // setPanY(prev => prev + velocityY);
+      setPanX(prev => clampPanX(prev + velocityX));
+      setPanY(prev => clampPanY(prev + velocityY));
+
       setVelocityX(v => v * 0.92);
+      setVelocityY(v => v * 0.92);
     });
 
     return () => cancelAnimationFrame(frame);
-  }, [isDragging, velocityX]);
+  }, [isDragging, velocityX, velocityY]);
 
   // =========================
   // TICKS
@@ -376,6 +409,27 @@ const visibleEvents = events
 
   const axisStart = worldToScreen(-3400);
   const axisEnd = worldToScreen(2025);
+
+  const contentTop = 90;
+  const contentBottom = currentY + 120;
+
+  const minPanX =
+    VIEWPORT_WIDTH - axisEnd - EDGE_PADDING;
+
+  const maxPanX =
+    EDGE_PADDING - axisStart;
+
+  const minPanY =
+    window.innerHeight - contentBottom - EDGE_PADDING;
+
+  const maxPanY =
+    STICKY_AXIS_Y - contentTop;
+
+  const clampPanX = (value: number) =>
+    clamp(value, minPanX, maxPanX);
+
+  const clampPanY = (value: number) =>
+    clamp(value, minPanY, maxPanY);
 
   // =========================
   // RENDER
@@ -420,8 +474,10 @@ const visibleEvents = events
         <TimelineControls
           onZoomIn={() => setZoom(z => z * 1.2)}
           onZoomOut={() => setZoom(z => z / 1.2)}
-          onPanLeft={() => setPanX(x => x - 200)}
-          onPanRight={() => setPanX(x => x + 200)}
+          // onPanLeft={() => setPanX(x => x - 200)}
+          // onPanRight={() => setPanX(x => x + 200)}
+          onPanLeft={() => setPanX(x => clampPanX(x - 200))}
+          onPanRight={() => setPanX(x => clampPanX(x + 200))}
           onCenter={centerOnZero}
           onToggleLanes={toggleAllLanes}
           areAllLanesOpen={areAllLanesOpen}
@@ -441,45 +497,14 @@ const visibleEvents = events
         // height={currentY + 200}
         className={`w-full h-full relative z-10 bg-zinc-900 select-none ${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
       >
-        <g transform={`translate(${panX},0)`}>
-
-          {/* AXIS */}
-          <line x1={axisStart} y1={120} x2={axisEnd} y2={120} stroke="#666" />
-
-          {/* TICKS */}
-          {ticks.map(year => {
-            const x = worldToScreen(year);
-            const isZero = year === 0;
-
-            return (
-              <g key={year}>
-                <line
-                  x1={x}
-                  y1={isZero ? 90 : 110}
-                  x2={x}
-                  y2={130}
-                  stroke={isZero ? "#ff0000" : "#888"}
-                  strokeWidth={isZero ? 3 : 1}
-                />
-                <text
-                  x={x + 6}
-                  y={isZero ? 85 : 105}
-                  fill={isZero ? "#ff0000" : "#aaa"}
-                  fontSize={isZero ? scaledFontSize() + 2 : scaledFontSize()}
-                  fontWeight={isZero ? "bold" : "normal"}
-                >
-                  {isZero ? "YEAR 0 (ANCHOR)" : formatYear(year)}
-                </text>
-              </g>
-            );
-          })}
+        <g transform={`translate(${panX},${panY})`}>
 
           {/* LANES */}
           {visibleLaneDefinitions.map(lane => {
             const Icon = lane.icon;
             return (
             <g key={lane.id}>
-              <rect
+              {/* <rect
                 x={axisStart}
                 y={getLaneY(lane.id) - 30}
                 width={axisEnd - axisStart}
@@ -487,6 +512,13 @@ const visibleEvents = events
                 fill={laneBackground(lane.color)}
                 // stroke={lane.color ?? "#333"}
                 // strokeOpacity={0.5}
+              /> */}
+              <rect
+                x={-panX}
+                y={getLaneY(lane.id) - 30}
+                width="100%"
+                height={laneHeights[lane.id]}
+                fill={laneBackground(lane.color)}
               />
               {/* <g
                 onClick={() => {
@@ -598,8 +630,9 @@ const visibleEvents = events
           })}
 
         </g>
+
         {/* STICKY LANE HEADERS */}
-        <g>
+        <g transform={`translate(0, ${panY})`}>
           {visibleLaneDefinitions.map(lane => {
             const Icon = lane.icon;
 
@@ -669,6 +702,57 @@ const visibleEvents = events
             );
           })}
         </g>
+
+        {/* AXIS */}
+        <g>
+          <rect
+            x={0}
+            y={70}
+            width="100%"
+            height={70}
+            fill="white"
+          />
+
+          <g transform={`translate(${panX},0)`}>
+            <line
+              x1={axisStart}
+              y1={120}
+              x2={axisEnd}
+              y2={120}
+              stroke="#000"
+            />
+
+            {ticks.map(year => {
+              const x = worldToScreen(year);
+              const isZero = year === 0;
+
+              return (
+                <g key={year}>
+                  <line
+                    x1={x}
+                    y1={110}
+                    x2={x}
+                    y2={130}
+                    stroke="#000"
+                    strokeWidth={1}
+                  />
+
+                  <text
+                    x={x}
+                    y={105}
+                    fill="#000"
+                    fontSize={scaledFontSize()}
+                    fontWeight="normal"
+                    textAnchor="middle"
+                  >
+                    {isZero ? "0" : formatYear(year)}
+                  </text>
+                </g>
+              );
+            })}
+          </g>
+        </g>
+
       </svg>
     </div>
   );

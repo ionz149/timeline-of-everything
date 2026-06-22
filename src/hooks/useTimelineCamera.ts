@@ -3,6 +3,7 @@ import { useState } from "react";
 export function useTimelineCamera() {
   const [zoom, setZoom] = useState(1);
   const [panX, setPanX] = useState(0);
+  const [panY, setPanY] = useState(0);
 
   const animateToPan = (
     targetPanX: number,
@@ -39,12 +40,13 @@ export function useTimelineCamera() {
     requestAnimationFrame(animate);
   };
 
-
   return {
     zoom,
     setZoom,
     panX,
     setPanX,
+    panY,
+    setPanY,
     animateToPan,
   };
 }
