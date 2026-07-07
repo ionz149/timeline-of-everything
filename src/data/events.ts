@@ -39,7 +39,7 @@ export const events: TimelineEvent[] = [
 
 	{
 		id: "neo-sumerian-empire",
-		title: "The Neo-Sumerian Empire",
+		title: "Neo-Sumerian Empire",
 		startYear: -2112,
 		endYear: -2004,
 		categories: ["empires"],
@@ -52,13 +52,49 @@ export const events: TimelineEvent[] = [
 	{
 		id: "babylonian-empire",
 		title: "Babylonian Empire",
-		startYear: -1792,
+		startYear: -1894,
 		endYear: -1595,
 		categories: ["empires"],
 		region: "Mesopotamia",
 		color: "#7c3aed",
 		teaser: "A powerful Mesopotamian culture known for Babylon, the Code of Hammurabi, and advances in law, math, and astronomy.",
 		description: "The Babylonian Empire was a major Mesopotamian civilization centered in the city of Babylon. It is best known for its legal code tradition, particularly the Code of Hammurabi, one of the earliest written legal systems. Babylon became a cultural and intellectual hub, advancing mathematics, astronomy, and literature. The empire’s authority fluctuated over time but remained highly influential in the ancient Near East."
+	},
+
+	{
+		id: "assyrian-empire",
+		title: "Assyrian Empire",
+		startYear: -2025,
+		endYear: -609,
+		categories: ["empires"],
+		region: "Mesopotamia",
+		color: "#7c3aed",
+		teaser: "Located in northern Mesopotamia, Assyria originally began as a major regional trading hub.",
+		description: "Located in northern Mesopotamia, Assyria originally began as a major regional trading hub. Over the centuries, it fractured and reformed into a brutal, highly organized military machine. At its absolute peak during the Neo-Assyrian period (911–609 BCE), it became the largest empire the world had ever seen, conquering everything from Egypt and the Levant to Iraq and parts of Iran."
+	},
+
+	{
+		id: "neo-babylonian-empire",
+		title: "Neo-Babylonian Empire",
+		startYear: -626,
+		endYear: -539,
+		categories: ["empires"],
+		region: "Mesopotamia",
+		color: "#7c3aed",
+		teaser: "Following a massive rebellion against the harsh Assyrians, the Babylonians regained their independence and conquered the remnants of the Assyrian state.",
+		description: "Following a massive rebellion against the harsh Assyrians, the Babylonians regained their independence and conquered the remnants of the Assyrian state. Under its most famous ruler, Nebuchadnezzar II, this empire rebuilt Babylon into a grand metropolis, constructed the legendary Ishtar Gate, and was credited with building the Hanging Gardens of Babylon."
+	},
+
+	{
+		id: "persian-empire",
+		title: "Persian (Achaemenid) Empire",
+		startYear: -550,
+		endYear: -330,
+		categories: ["empires"],
+		region: "Mesopotamia",
+		color: "#7c3aed",
+		teaser: "The era of native Mesopotamian empires ended when Cyrus the Great of Persia invaded and captured Babylon in 539 BCE.",
+		description: "The era of native Mesopotamian empires ended when Cyrus the Great of Persia invaded and captured Babylon in 539 BCE. The Achaemenid Empire absorbed all previous Mesopotamian lands into a massive, multi-continental super-empire that eventually clashed with ancient Greece."
 	},
 
 	{

@@ -419,6 +419,7 @@ const visibleEvents = events
       pointers.length === 2 &&
       pinchStartRef.current
     ) {
+      isMapGestureRef.current = true;
       const [first, second] = pointers;
       const center = getPointerCenter(first, second);
       const distance = getPointerDistance(first, second);
@@ -505,6 +506,10 @@ const visibleEvents = events
       setLastPointerY(remainingPointers[0].y);
     } else {
       setIsDragging(false);
+
+      window.setTimeout(() => {
+        isMapGestureRef.current = false;
+      }, 100);
     }
   };
 
@@ -537,6 +542,8 @@ const visibleEvents = events
       y: (first.y + second.y) / 2,
     };
   };
+
+  const isMapGestureRef = useRef(false);
 
   // inertia
   useEffect(() => {
@@ -821,7 +828,9 @@ const visibleEvents = events
                     onMouseLeave={() =>
                       setHoveredEventId(null)
                     }
-                    onPointerDown={(e) => e.stopPropagation()}
+                    onPointerDown={(e) => {
+                      e.stopPropagation();
+                    }}
                     onClick={(e) => {
                       e.stopPropagation();
                       focusEvent(event.id);
@@ -869,8 +878,13 @@ const visibleEvents = events
                 onPointerDown={(e) => {
                   e.stopPropagation();
                 }}
-                onPointerUp={(e) => {
+                onClick={(e) => {
                   e.stopPropagation();
+
+                  if (isMapGestureRef.current) {
+                    return;
+                  }
+
                   toggleLane(lane.id);
                 }}
                 className="cursor-pointer"
@@ -879,6 +893,7 @@ const visibleEvents = events
                   x={headerX - 12}
                   y={headerY - 28}
                   width={axisEnd - axisStart}
+                  // width={320}
                   height={60}
                   rx={8}
                   fill="rgba(24,24,27,0)"
