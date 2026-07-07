@@ -718,7 +718,7 @@ const visibleEvents = events
 
           {/* LANES */}
           {visibleLaneDefinitions.map(lane => {
-            const Icon = lane.icon;
+            // const Icon = lane.icon;
             return (
             <g key={lane.id}>
               {/* <rect
@@ -857,16 +857,22 @@ const visibleEvents = events
             const headerX = 20;
             const headerY = getLaneY(lane.id);
 
-            const textWidth =
-              Math.max(
-                lane.label.length,
-                lane.description.length
-              ) * 9;
+            // const textWidth =
+            //   Math.max(
+            //     lane.label.length,
+            //     lane.description.length
+            //   ) * 9;
 
             return (
               <g
                 key={`header-${lane.id}`}
-                onClick={() => toggleLane(lane.id)}
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                }}
+                onPointerUp={(e) => {
+                  e.stopPropagation();
+                  toggleLane(lane.id);
+                }}
                 className="cursor-pointer"
               >
                 <rect

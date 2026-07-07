@@ -6,7 +6,7 @@ export const events: TimelineEvent[] = [
 		title: "Egyptian Empire",
 		startYear: -3100,
 		endYear: -30,
-		categories: ["empires", "warfare"],
+		categories: ["empires"],
 		region: "Africa",
 		// color: "#991b1b",
 		teaser: "One of the world’s earliest great civilizations, built along the Nile. Famous for pharaohs, pyramids, and a deeply religious society centered on the afterlife.",
@@ -23,6 +23,30 @@ export const events: TimelineEvent[] = [
 		color: "#2563eb",
 		teaser: "An early Andean civilization that built massive ceremonial sites without pottery or writing. A mysterious, highly organized river-and-coast society.",
 		description: "The Norte Chico civilization was one of the earliest known complex societies in the Americas, located on the central coast of present-day Peru. It is notable for developing large urban settlements and monumental architecture without evidence of pottery or extensive warfare. Its economy was based heavily on agriculture supported by irrigation and fishing resources. It is often considered a foundational civilization in Andean cultural development."
+	},
+
+	{
+		id: "akkadian-empire",
+		title: "Akkadian Empire",
+		startYear: -2334,
+		endYear: -2154,
+		categories: ["empires"],
+		region: "Mesopotamia",
+		color: "#7c3aed",
+		teaser: "The Akkadian Empire or the Kingdom of Akkad/Agade was an ancient kingdom established around 2334 BCE, and the first empire in world history.",
+		description: "The Akkadian Empire or the Kingdom of Akkad/Agade was an ancient kingdom established around 2334 BCE, and the first empire in world history, succeeding the long-lived city-states of Sumer."
+	},
+
+	{
+		id: "neo-sumerian-empire",
+		title: "The Neo-Sumerian Empire",
+		startYear: -2112,
+		endYear: -2004,
+		categories: ["empires"],
+		region: "Mesopotamia",
+		color: "#7c3aed",
+		teaser: "A massive resurgence of Sumerian culture and political power.",
+		description: "Also known as the Third Dynasty of Ur (Ur III), this was a massive resurgence of Sumerian culture and political power. After pushing out the Gutian invaders, the kings of Ur built a highly centralized, bureaucratic empire that controlled much of Mesopotamia. They are famous for developing the oldest known law code, the Code of Ur-Nammu."
 	},
 
 	{
