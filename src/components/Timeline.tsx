@@ -199,10 +199,25 @@ const visibleEvents = events
   // INTERACTION STATE
   // =========================
   const [isDragging, setIsDragging] = useState(false);
-  const [lastX, setLastX] = useState(0);
-  const [lastY, setLastY] = useState(0);
+  // const [lastX, setLastX] = useState(0);
+  // const [lastY, setLastY] = useState(0);
+  const [lastPointerX, setLastPointerX] = useState(0);
+  const [lastPointerY, setLastPointerY] = useState(0);
   const [velocityX, setVelocityX] = useState(0);
   const [velocityY, setVelocityY] = useState(0);
+
+  const activePointersRef = useRef<
+    Map<number, { x: number; y: number }>
+  >(new Map());
+
+  const pinchStartRef = useRef<{
+    distance: number;
+    centerX: number;
+    centerY: number;
+    zoom: number;
+    panX: number;
+    panY: number;
+  } | null>(null);
 
   const centerOnZero = () => {
     const worldZeroX = yearToX(0);
@@ -320,39 +335,207 @@ const visibleEvents = events
 
     const newPanX = mouseX - worldX * newZoom;
 
+    // setZoom(newZoom);
+    // setPanX(newPanX);
+    const newPanXBounds =
+      getPanXBounds(newZoom);
+
+    const clampedNewPanX = clamp(
+      newPanX,
+      newPanXBounds.min,
+      newPanXBounds.max
+    );
+
+    setVelocityX(0);
+    setVelocityY(0);
     setZoom(newZoom);
-    setPanX(newPanX);
+    setPanX(clampedNewPanX);
   };
 
   // =========================
   // DRAG
   // =========================
-  const handleMouseDown = (e: React.MouseEvent<SVGSVGElement>) => {
-    setIsDragging(true);
-    setLastX(e.clientX);
-    setLastY(e.clientY);
+  const handlePointerDown = (
+    e: React.PointerEvent<SVGSVGElement>
+  ) => {
+    e.preventDefault();
+
+    setVelocityX(0);
+    setVelocityY(0);
+
+    e.currentTarget.setPointerCapture(e.pointerId);
+
+    activePointersRef.current.set(e.pointerId, {
+      x: e.clientX,
+      y: e.clientY,
+    });
+
+    const pointers = Array.from(
+      activePointersRef.current.values()
+    );
+
+    if (pointers.length === 1) {
+      setIsDragging(true);
+      setLastPointerX(e.clientX);
+      setLastPointerY(e.clientY);
+    }
+
+    if (pointers.length === 2) {
+      setIsDragging(false);
+
+      const [first, second] = pointers;
+      const center = getPointerCenter(first, second);
+
+      pinchStartRef.current = {
+        distance: getPointerDistance(first, second),
+        centerX: center.x,
+        centerY: center.y,
+        zoom,
+        panX,
+        panY,
+      };
+    }
   };
 
-  const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
-    if (!isDragging) return;
+  const handlePointerMove = (
+    e: React.PointerEvent<SVGSVGElement>
+  ) => {
+    e.preventDefault();
 
-    const deltaX = e.clientX - lastX;
-    const deltaY = e.clientY - lastY;
+    if (!activePointersRef.current.has(e.pointerId)) {
+      return;
+    }
 
-    // setPanX(prev => prev + deltaX);
-    // setPanY(prev => prev + deltaY);
+    activePointersRef.current.set(e.pointerId, {
+      x: e.clientX,
+      y: e.clientY,
+    });
+
+    const pointers = Array.from(
+      activePointersRef.current.values()
+    );
+
+    if (
+      pointers.length === 2 &&
+      pinchStartRef.current
+    ) {
+      const [first, second] = pointers;
+      const center = getPointerCenter(first, second);
+      const distance = getPointerDistance(first, second);
+
+      const zoomRatio =
+        distance / pinchStartRef.current.distance;
+
+      const newZoom = Math.max(
+        0.02,
+        Math.min(
+          6,
+          pinchStartRef.current.zoom * zoomRatio
+        )
+      );
+
+      const startWorldX =
+        (pinchStartRef.current.centerX -
+          pinchStartRef.current.panX) /
+        pinchStartRef.current.zoom;
+
+      const newPanX =
+        center.x - startWorldX * newZoom;
+
+      const newPanY =
+        pinchStartRef.current.panY +
+        (center.y - pinchStartRef.current.centerY);
+
+      const newPanXBounds =
+        getPanXBounds(newZoom);
+
+      const clampedNewPanX = clamp(
+        newPanX,
+        newPanXBounds.min,
+        newPanXBounds.max
+      );
+
+      setZoom(newZoom);
+      setPanX(clampedNewPanX);
+      setPanY(clampPanY(newPanY));
+
+      setVelocityX(0);
+      setVelocityY(0);
+
+      return;
+    }
+
+    if (pointers.length !== 1 || !isDragging) {
+      return;
+    }
+
+    const deltaX = e.clientX - lastPointerX;
+    const deltaY = e.clientY - lastPointerY;
+
     setPanX(prev => clampPanX(prev + deltaX));
     setPanY(prev => clampPanY(prev + deltaY));
 
     setVelocityX(deltaX);
     setVelocityY(deltaY);
 
-    setLastX(e.clientX);
-    setLastY(e.clientY);
+    setLastPointerX(e.clientX);
+    setLastPointerY(e.clientY);
   };
 
-  const handleMouseUp = () => {
+  const handlePointerUp = (
+    e: React.PointerEvent<SVGSVGElement>
+  ) => {
+    e.preventDefault();
+
+    activePointersRef.current.delete(e.pointerId);
+
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+
+    pinchStartRef.current = null;
+
+    const remainingPointers = Array.from(
+      activePointersRef.current.values()
+    );
+
+    if (remainingPointers.length === 1) {
+      setIsDragging(true);
+      setLastPointerX(remainingPointers[0].x);
+      setLastPointerY(remainingPointers[0].y);
+    } else {
+      setIsDragging(false);
+    }
+  };
+
+  const handlePointerCancel = (
+    e: React.PointerEvent<SVGSVGElement>
+  ) => {
+    activePointersRef.current.delete(e.pointerId);
+    pinchStartRef.current = null;
     setIsDragging(false);
+  };
+
+  const getPointerDistance = (
+    first: { x: number; y: number },
+    second: { x: number; y: number }
+  ) => {
+    const deltaX = second.x - first.x;
+    const deltaY = second.y - first.y;
+
+    return Math.sqrt(
+      deltaX * deltaX + deltaY * deltaY
+    );
+  };
+
+  const getPointerCenter = (
+    first: { x: number; y: number },
+    second: { x: number; y: number }
+  ) => {
+    return {
+      x: (first.x + second.x) / 2,
+      y: (first.y + second.y) / 2,
+    };
   };
 
   // inertia
@@ -413,11 +596,11 @@ const visibleEvents = events
   const contentTop = 90;
   const contentBottom = currentY + 120;
 
-  const minPanX =
-    VIEWPORT_WIDTH - axisEnd - EDGE_PADDING;
+  // const minPanX =
+  //   VIEWPORT_WIDTH - axisEnd - EDGE_PADDING;
 
-  const maxPanX =
-    EDGE_PADDING - axisStart;
+  // const maxPanX =
+  //   EDGE_PADDING - axisStart;
 
   const minPanY =
     window.innerHeight - contentBottom - EDGE_PADDING;
@@ -425,11 +608,44 @@ const visibleEvents = events
   const maxPanY =
     STICKY_AXIS_Y - contentTop;
 
-  const clampPanX = (value: number) =>
-    clamp(value, minPanX, maxPanX);
+  // const clampPanX = (value: number) =>
+  //   clamp(value, minPanX, maxPanX);
 
   const clampPanY = (value: number) =>
     clamp(value, minPanY, maxPanY);
+
+  const getPanXBounds = (targetZoom: number) => {
+    const targetAxisStart = yearToX(-3400) * targetZoom;
+    const targetAxisEnd = yearToX(2025) * targetZoom;
+    const targetWidth = targetAxisEnd - targetAxisStart;
+    const viewportWidth = window.innerWidth;
+
+    if (targetWidth + EDGE_PADDING * 2 <= viewportWidth) {
+      const centeredPanX =
+        viewportWidth / 2 -
+        (targetAxisStart + targetWidth / 2);
+
+      return {
+        min: centeredPanX,
+        max: centeredPanX,
+      };
+    }
+
+    return {
+      min: viewportWidth - targetAxisEnd - EDGE_PADDING,
+      max: EDGE_PADDING - targetAxisStart,
+    };
+  };
+
+  const clampPanX = (value: number) => {
+    const bounds = getPanXBounds(zoom);
+
+    return clamp(
+      value,
+      bounds.min,
+      bounds.max
+    );
+  };
 
   // =========================
   // RENDER
@@ -487,15 +703,16 @@ const visibleEvents = events
       {/* SVG */}
       <svg
         ref={svgRef}
+        style={{ touchAction: "none" }}
         onWheel={handleWheel}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerCancel}
         width={VIEWPORT_WIDTH}
         height="100%"
         // height={currentY + 200}
-        className={`w-full h-full relative z-10 bg-zinc-900 select-none ${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
+        className={`w-full h-full relative z-10 bg-zinc-900 select-none touch-none ${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
       >
         <g transform={`translate(${panX},${panY})`}>
 
@@ -604,6 +821,7 @@ const visibleEvents = events
                     onMouseLeave={() =>
                       setHoveredEventId(null)
                     }
+                    onPointerDown={(e) => e.stopPropagation()}
                     onClick={(e) => {
                       e.stopPropagation();
                       focusEvent(event.id);
