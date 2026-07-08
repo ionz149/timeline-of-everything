@@ -1,15 +1,27 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 export function useTimelineCamera() {
   const [zoom, setZoom] = useState(1);
   const [panX, setPanX] = useState(0);
   const [panY, setPanY] = useState(0);
 
+  const animationFrameRef =
+    useRef<number | null>(null);
+
+  const cancelCameraAnimation = () => {
+    if (animationFrameRef.current !== null) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+  };
+
   const animateToPan = (
     targetPanX: number,
     duration = 750,
     onComplete?: () => void
   ) => {
+    cancelCameraAnimation();
+
     const startPan = panX;
     const startTime = performance.now();
 
@@ -31,13 +43,16 @@ export function useTimelineCamera() {
       setPanX(currentPan);
 
       if (progress < 1) {
-        requestAnimationFrame(animate);
+        animationFrameRef.current =
+          requestAnimationFrame(animate);
       } else {
+        animationFrameRef.current = null;
         onComplete?.();
       }
     };
 
-    requestAnimationFrame(animate);
+    animationFrameRef.current =
+      requestAnimationFrame(animate);
   };
 
   return {
@@ -48,5 +63,6 @@ export function useTimelineCamera() {
     panY,
     setPanY,
     animateToPan,
+    cancelCameraAnimation,
   };
 }

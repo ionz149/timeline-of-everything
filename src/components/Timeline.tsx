@@ -13,6 +13,7 @@ import EventTooltip from "./EventTooltip";
 import { useTimelineCamera } from "../hooks/useTimelineCamera";
 
 const VIEWPORT_WIDTH = 1400;
+const DRAG_THRESHOLD = 6;
 
 const clamp = (
   value: number,
@@ -32,6 +33,7 @@ export default function Timeline() {
     panY,
     setPanY,
     animateToPan,
+    cancelCameraAnimation,
   } = useTimelineCamera();
 
   const [selectedEventId, setSelectedEventId] =
@@ -219,6 +221,17 @@ const visibleEvents = events
     panY: number;
   } | null>(null);
 
+  const primaryPointerStartRef = useRef<{
+    id: number;
+    x: number;
+    y: number;
+  } | null>(null);
+
+  const primaryPointerMovedRef = useRef(false);
+
+  const focusTimeoutRef =
+    useRef<number | null>(null);
+
   const centerOnZero = () => {
     const worldZeroX = yearToX(0);
     const centerScreen = VIEWPORT_WIDTH / 2;
@@ -226,9 +239,29 @@ const visibleEvents = events
     setPanX(clampPanX(centerScreen - worldZeroX * zoom));
   };
 
+  const resetMapInteraction = () => {
+    if (focusTimeoutRef.current !== null) {
+      window.clearTimeout(focusTimeoutRef.current);
+      focusTimeoutRef.current = null;
+    }
+
+    cancelCameraAnimation();
+
+    activePointersRef.current.clear();
+    pinchStartRef.current = null;
+    isMapGestureRef.current = false;
+    primaryPointerStartRef.current = null;
+    primaryPointerMovedRef.current = false;
+
+    setIsDragging(false);
+    setVelocityX(0);
+    setVelocityY(0);
+  };
+
   const focusEvent = (
     eventId: string
   ) => {
+    resetMapInteraction();
     const event = events.find(
       e => e.id === eventId
     );
@@ -277,12 +310,13 @@ const visibleEvents = events
     // );
     revealLane(primaryCategory);
 
-    setTimeout(() => {
+    focusTimeoutRef.current = window.setTimeout(() => {
       animateToPan(
         centerScreen - eventX
       );
 
       setSelectedEventId(event.id);
+      focusTimeoutRef.current = null;
     }, 250);
 
     // ====================
@@ -358,7 +392,9 @@ const visibleEvents = events
   const handlePointerDown = (
     e: React.PointerEvent<SVGSVGElement>
   ) => {
-    e.preventDefault();
+    if (e.pointerType !== "touch") {
+      e.preventDefault();
+    }
 
     setVelocityX(0);
     setVelocityY(0);
@@ -375,13 +411,23 @@ const visibleEvents = events
     );
 
     if (pointers.length === 1) {
-      setIsDragging(true);
+      primaryPointerStartRef.current = {
+        id: e.pointerId,
+        x: e.clientX,
+        y: e.clientY,
+      };
+
+      primaryPointerMovedRef.current = false;
+
+      setIsDragging(false);
       setLastPointerX(e.clientX);
       setLastPointerY(e.clientY);
     }
 
     if (pointers.length === 2) {
       setIsDragging(false);
+      primaryPointerMovedRef.current = true;
+      isMapGestureRef.current = true;
 
       const [first, second] = pointers;
       const center = getPointerCenter(first, second);
@@ -466,9 +512,30 @@ const visibleEvents = events
       return;
     }
 
-    if (pointers.length !== 1 || !isDragging) {
+    if (pointers.length !== 1) {
       return;
     }
+
+    const start = primaryPointerStartRef.current;
+
+    if (!start) {
+      return;
+    }
+
+    const totalDeltaX = e.clientX - start.x;
+    const totalDeltaY = e.clientY - start.y;
+
+    const hasMovedEnough =
+      Math.abs(totalDeltaX) > DRAG_THRESHOLD ||
+      Math.abs(totalDeltaY) > DRAG_THRESHOLD;
+
+    if (!hasMovedEnough && !primaryPointerMovedRef.current) {
+      return;
+    }
+
+    primaryPointerMovedRef.current = true;
+    isMapGestureRef.current = true;
+    setIsDragging(true);
 
     const deltaX = e.clientX - lastPointerX;
     const deltaY = e.clientY - lastPointerY;
@@ -506,9 +573,11 @@ const visibleEvents = events
       setLastPointerY(remainingPointers[0].y);
     } else {
       setIsDragging(false);
+      primaryPointerStartRef.current = null;
 
       window.setTimeout(() => {
         isMapGestureRef.current = false;
+        primaryPointerMovedRef.current = false;
       }, 100);
     }
   };
@@ -568,6 +637,33 @@ const visibleEvents = events
 
     return () => cancelAnimationFrame(frame);
   }, [isDragging, velocityX, velocityY]);
+
+  useEffect(() => {
+    let lastTouchEnd = 0;
+
+    const preventDoubleTapZoom = (event: TouchEvent) => {
+      const now = Date.now();
+
+      if (now - lastTouchEnd <= 300) {
+        event.preventDefault();
+      }
+
+      lastTouchEnd = now;
+    };
+
+    document.addEventListener(
+      "touchend",
+      preventDoubleTapZoom,
+      { passive: false }
+    );
+
+    return () => {
+      document.removeEventListener(
+        "touchend",
+        preventDoubleTapZoom
+      );
+    };
+  }, []);
 
   // =========================
   // TICKS
@@ -659,15 +755,27 @@ const visibleEvents = events
   // =========================
   return (
     <div
-      className="fixed inset-0 bg-zinc-950 overflow-hidden select-none"
-      onClick={() => setSelectedEventId(null)}
+      className="fixed inset-0 bg-zinc-950 overflow-hidden select-none touch-none"
+      // onClick={() => setSelectedEventId(null)}
+      onDoubleClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      }}
+      onClick={() => {
+        resetMapInteraction();
+        setSelectedEventId(null);
+      }}
     >
 
       {selectedEvent && (
         <div onClick={(e) => e.stopPropagation()}>
           <EventPanel
             event={selectedEvent}
-            onClose={() => setSelectedEventId(null)}
+            // onClose={() => setSelectedEventId(null)}
+            onClose={() => {
+              resetMapInteraction();
+              setSelectedEventId(null);
+            }}
             onPrevious={goToPreviousEvent}
             onNext={goToNextEvent}
             hasPrevious={hasPreviousEvent}
@@ -711,6 +819,10 @@ const visibleEvents = events
       <svg
         ref={svgRef}
         style={{ touchAction: "none" }}
+        onDoubleClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        }}
         onWheel={handleWheel}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
@@ -829,10 +941,18 @@ const visibleEvents = events
                       setHoveredEventId(null)
                     }
                     onPointerDown={(e) => {
-                      e.stopPropagation();
+                      if (e.pointerType !== "touch") {
+                        e.stopPropagation();
+                        isMapGestureRef.current = false;
+                      }
                     }}
                     onClick={(e) => {
                       e.stopPropagation();
+
+                      if (isMapGestureRef.current) {
+                        return;
+                      }
+
                       focusEvent(event.id);
                     }}
                     className="cursor-pointer"
@@ -892,8 +1012,8 @@ const visibleEvents = events
                 <rect
                   x={headerX - 12}
                   y={headerY - 28}
-                  width={axisEnd - axisStart}
-                  // width={320}
+                  // width={axisEnd - axisStart}
+                  width={320}
                   height={60}
                   rx={8}
                   fill="rgba(24,24,27,0)"
