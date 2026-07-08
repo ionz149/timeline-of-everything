@@ -19,3 +19,4 @@ A working attempt at building a timeline of all important events that have occur
 - [x] Lane improvements (grouping, collapse, polish)
 - [ ] Mini-map overview
 - [ ] Google Maps–style navigation overhaul (pan/zoom/scroll model)
+- [ ] Some sort of GUI for adding/editing events
