@@ -14,6 +14,8 @@ import { useTimelineCamera } from "../hooks/useTimelineCamera";
 
 const VIEWPORT_WIDTH = 1400;
 const DRAG_THRESHOLD = 6;
+const MIN_YEAR = -3401;
+const MAX_YEAR = new Date().getFullYear();
 
 const clamp = (
   value: number,
@@ -234,9 +236,11 @@ const visibleEvents = events
 
   const centerOnZero = () => {
     const worldZeroX = yearToX(0);
-    const centerScreen = VIEWPORT_WIDTH / 2;
-    // setPanX(centerScreen - worldZeroX * zoom);
-    setPanX(clampPanX(centerScreen - worldZeroX * zoom));
+    const centerScreen = window.innerWidth / 2;
+
+    setPanX(
+      clampPanX(centerScreen - worldZeroX * zoom)
+    );
   };
 
   const resetMapInteraction = () => {
@@ -357,7 +361,12 @@ const visibleEvents = events
 
     const direction = Math.exp(-e.deltaY * zoomIntensity);
 
-    const newZoom = Math.max(0.02, Math.min(6, zoom * direction));
+    const minZoom = getMinZoom();
+
+    const newZoom = Math.max(
+      minZoom,
+      Math.min(6, zoom * direction)
+    );
 
     const svg = svgRef.current;
     if (!svg) return;
@@ -473,8 +482,10 @@ const visibleEvents = events
       const zoomRatio =
         distance / pinchStartRef.current.distance;
 
+      const minZoom = getMinZoom();
+
       const newZoom = Math.max(
-        0.02,
+        minZoom,
         Math.min(
           6,
           pinchStartRef.current.zoom * zoomRatio
@@ -669,32 +680,46 @@ const visibleEvents = events
   // TICKS
   // =========================
   const getTickStep = (z: number) => {
-    if (z < 0.4) return 1000;
-    if (z < 0.8) return 500;
-    if (z < 1.5) return 250;
-    if (z < 3) return 100;
-    return 50;
+    if (z < 0.35) return 1000;
+    if (z < 0.7) return 500;
+    if (z < 1.2) return 200;
+    if (z < 2) return 100;
+    if (z < 4) return 50;
+    return 25;
   };
 
   const step = getTickStep(zoom);
 
   const ticksSet = new Set<number>();
 
-  for (let y = -3400; y <= 2025; y += step) {
-    ticksSet.add(y);
+  ticksSet.add(MIN_YEAR);
+  ticksSet.add(0);
+  ticksSet.add(MAX_YEAR);
+
+  for (let year = step; year <= MAX_YEAR; year += step) {
+    ticksSet.add(year);
   }
 
-  ticksSet.add(0);
+  for (let year = -step; year >= MIN_YEAR; year -= step) {
+    ticksSet.add(year);
+  }
 
-  const ticks = Array.from(ticksSet).sort((a, b) => a - b);
+  const ticks = Array.from(ticksSet)
+    .filter(year =>
+      year >= MIN_YEAR &&
+      year <= MAX_YEAR
+    )
+    .sort((a, b) => a - b);
 
   const worldToScreen = (year: number) => yearToX(year) * zoom;
 
   const scaledFontSize = () =>
     Math.max(10, Math.min(18, 10 + zoom * 2));
 
-  const axisStart = worldToScreen(-3400);
-  const axisEnd = worldToScreen(2025);
+  // const axisStart = worldToScreen(-3400);
+  // const axisEnd = worldToScreen(2025);
+  const axisStart = worldToScreen(MIN_YEAR);
+  const axisEnd = worldToScreen(MAX_YEAR);
 
   const contentTop = 90;
   const contentBottom = currentY + 120;
@@ -712,32 +737,27 @@ const visibleEvents = events
     STICKY_AXIS_Y - contentTop;
 
   // const clampPanX = (value: number) =>
-  //   clamp(value, minPanX, maxPanX);
+  // clamp(value, minPanX, maxPanX);
 
   const clampPanY = (value: number) =>
     clamp(value, minPanY, maxPanY);
 
   const getPanXBounds = (targetZoom: number) => {
-    const targetAxisStart = yearToX(-3400) * targetZoom;
-    const targetAxisEnd = yearToX(2025) * targetZoom;
-    const targetWidth = targetAxisEnd - targetAxisStart;
+    const targetAxisStart = yearToX(MIN_YEAR) * targetZoom;
+    const targetAxisEnd = yearToX(MAX_YEAR) * targetZoom;
     const viewportWidth = window.innerWidth;
 
-    if (targetWidth + EDGE_PADDING * 2 <= viewportWidth) {
-      const centeredPanX =
-        viewportWidth / 2 -
-        (targetAxisStart + targetWidth / 2);
-
-      return {
-        min: centeredPanX,
-        max: centeredPanX,
-      };
-    }
-
     return {
-      min: viewportWidth - targetAxisEnd - EDGE_PADDING,
-      max: EDGE_PADDING - targetAxisStart,
+      min: viewportWidth - targetAxisEnd,
+      max: -targetAxisStart,
     };
+  };
+
+  const getMinZoom = () => {
+    const worldWidth =
+      yearToX(MAX_YEAR) - yearToX(MIN_YEAR);
+
+    return window.innerWidth / worldWidth;
   };
 
   const clampPanX = (value: number) => {
@@ -803,8 +823,14 @@ const visibleEvents = events
         onClick={(e) => e.stopPropagation()}
       >
         <TimelineControls
-          onZoomIn={() => setZoom(z => z * 1.2)}
-          onZoomOut={() => setZoom(z => z / 1.2)}
+          // onZoomIn={() => setZoom(z => z * 1.2)}
+          // onZoomOut={() => setZoom(z => z / 1.2)}
+          onZoomIn={() =>
+            setZoom(z => Math.min(6, z * 1.2))
+          }
+          onZoomOut={() =>
+            setZoom(z => Math.max(getMinZoom(), z / 1.2))
+          }
           // onPanLeft={() => setPanX(x => x - 200)}
           // onPanRight={() => setPanX(x => x + 200)}
           onPanLeft={() => setPanX(x => clampPanX(x - 200))}
@@ -1095,14 +1121,19 @@ const visibleEvents = events
                     stroke="#000"
                     strokeWidth={1}
                   />
-
                   <text
                     x={x}
                     y={105}
                     fill="#000"
                     fontSize={scaledFontSize()}
                     fontWeight="normal"
-                    textAnchor="middle"
+                    textAnchor={
+                      year === MIN_YEAR
+                        ? "start"
+                        : year === MAX_YEAR
+                          ? "end"
+                          : "middle"
+                    }
                   >
                     {isZero ? "0" : formatYear(year)}
                   </text>
