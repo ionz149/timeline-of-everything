@@ -1,10 +1,10 @@
 export function formatYear(year: number) {
   if (year < 0) {
-    return `${Math.abs(year) + 1} BCE`;
+    return `${Math.abs(year)} BCE`;
   }
 
   if (year === 0) {
-    return `1 BCE`;
+    return "0";
   }
 
   return `${year} CE`;

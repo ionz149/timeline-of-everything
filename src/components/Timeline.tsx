@@ -14,8 +14,11 @@ import { useTimelineCamera } from "../hooks/useTimelineCamera";
 
 const VIEWPORT_WIDTH = 1400;
 const DRAG_THRESHOLD = 6;
-const MIN_YEAR = -3401;
+const MIN_YEAR = -3400;
 const MAX_YEAR = new Date().getFullYear();
+const MAX_ZOOM = 30;
+const AXIS_LABEL_FONT_SIZE = 12;
+const MIN_TICK_LABEL_SPACING = 90;
 
 const clamp = (
   value: number,
@@ -158,6 +161,9 @@ const visibleEvents = events
 
   const STICKY_AXIS_Y = 96;
   const EDGE_PADDING = 80;
+
+  const EVENT_TITLE_FONT_SIZE = 12;
+  const EVENT_TITLE_HORIZONTAL_PADDING = 8;
 
   // number of rows per lane (from packing)
   const laneRowCounts: Record<string, number> = {};
@@ -316,7 +322,7 @@ const visibleEvents = events
 
     focusTimeoutRef.current = window.setTimeout(() => {
       animateToPan(
-        centerScreen - eventX
+        clampPanX(centerScreen - eventX)
       );
 
       setSelectedEventId(event.id);
@@ -365,7 +371,10 @@ const visibleEvents = events
 
     const newZoom = Math.max(
       minZoom,
-      Math.min(6, zoom * direction)
+      Math.min(
+        MAX_ZOOM,
+        zoom * direction
+      )
     );
 
     const svg = svgRef.current;
@@ -487,7 +496,7 @@ const visibleEvents = events
       const newZoom = Math.max(
         minZoom,
         Math.min(
-          6,
+          MAX_ZOOM,
           pinchStartRef.current.zoom * zoomRatio
         )
       );
@@ -679,16 +688,41 @@ const visibleEvents = events
   // =========================
   // TICKS
   // =========================
-  const getTickStep = (z: number) => {
-    if (z < 0.35) return 1000;
-    if (z < 0.7) return 500;
-    if (z < 1.2) return 200;
-    if (z < 2) return 100;
-    if (z < 4) return 50;
-    return 25;
+  const worldToScreen = (year: number) => yearToX(year) * zoom;
+  const getTickStep = () => {
+    const availableSteps = [
+      1,
+      2,
+      5,
+      10,
+      25,
+      50,
+      100,
+      200,
+      500,
+      1000,
+    ];
+
+    for (const step of availableSteps) {
+      const startX = worldToScreen(0);
+      const endX = worldToScreen(step);
+
+      const pixelSpacing = Math.abs(
+        endX - startX
+      );
+
+      if (
+        pixelSpacing >=
+        MIN_TICK_LABEL_SPACING
+      ) {
+        return step;
+      }
+    }
+
+    return 1000;
   };
 
-  const step = getTickStep(zoom);
+  const step = getTickStep();
 
   const ticksSet = new Set<number>();
 
@@ -696,25 +730,52 @@ const visibleEvents = events
   ticksSet.add(0);
   ticksSet.add(MAX_YEAR);
 
-  for (let year = step; year <= MAX_YEAR; year += step) {
+  for (
+    let year = step;
+    year <= MAX_YEAR;
+    year += step
+  ) {
     ticksSet.add(year);
   }
 
-  for (let year = -step; year >= MIN_YEAR; year -= step) {
+  for (
+    let year = -step;
+    year >= MIN_YEAR;
+    year -= step
+  ) {
     ticksSet.add(year);
   }
 
-  const ticks = Array.from(ticksSet)
-    .filter(year =>
-      year >= MIN_YEAR &&
-      year <= MAX_YEAR
-    )
-    .sort((a, b) => a - b);
+  const ticks = Array.from(ticksSet).sort(
+    (a, b) => a - b
+  );
 
-  const worldToScreen = (year: number) => yearToX(year) * zoom;
+  const showEventTitles = zoom >= 0.15;
+  const truncateEventTitle = (
+    title: string,
+    availableWidth: number
+  ) => {
+    const averageCharacterWidth =
+      EVENT_TITLE_FONT_SIZE * 0.6;
 
-  const scaledFontSize = () =>
-    Math.max(10, Math.min(18, 10 + zoom * 2));
+    const maxCharacters = Math.floor(
+      availableWidth / averageCharacterWidth
+    );
+
+    if (maxCharacters <= 1) {
+      return "";
+    }
+
+    if (title.length <= maxCharacters) {
+      return title;
+    }
+
+    if (maxCharacters <= 3) {
+      return "…";
+    }
+
+    return `${title.slice(0, maxCharacters - 1)}…`;
+  };
 
   // const axisStart = worldToScreen(-3400);
   // const axisEnd = worldToScreen(2025);
@@ -794,6 +855,8 @@ const visibleEvents = events
             // onClose={() => setSelectedEventId(null)}
             onClose={() => {
               resetMapInteraction();
+              setPanX(prev => clampPanX(prev));
+              setPanY(prev => clampPanY(prev));
               setSelectedEventId(null);
             }}
             onPrevious={goToPreviousEvent}
@@ -826,7 +889,12 @@ const visibleEvents = events
           // onZoomIn={() => setZoom(z => z * 1.2)}
           // onZoomOut={() => setZoom(z => z / 1.2)}
           onZoomIn={() =>
-            setZoom(z => Math.min(6, z * 1.2))
+            setZoom(z =>
+              Math.min(
+                MAX_ZOOM,
+                z * 1.2
+              )
+            )
           }
           onZoomOut={() =>
             setZoom(z => Math.max(getMinZoom(), z / 1.2))
@@ -950,7 +1018,19 @@ const visibleEvents = events
               row.map(event => {
                 const x = worldToScreen(event.startYear);
                 const x2 = worldToScreen(event.endYear);
-                const width = x2 - x;
+                const width = Math.max(
+                  x2 - x,
+                  12
+                );
+                const titleWidth = Math.max(
+                  0,
+                  width - EVENT_TITLE_HORIZONTAL_PADDING * 2
+                );
+
+                const displayTitle = truncateEventTitle(
+                  event.title,
+                  titleWidth
+                );
                 const y =
                   getLaneY(lane.id) +
                   HEADER_HEIGHT +
@@ -993,9 +1073,17 @@ const visibleEvents = events
                       }
                       rx={12}
                     />
-                    <text x={8} y={16} fill="white" fontSize={scaledFontSize()}>
-                      {event.title}
-                    </text>
+                    {showEventTitles && displayTitle && (
+                      <text
+                        x={EVENT_TITLE_HORIZONTAL_PADDING}
+                        y={16}
+                        fill="white"
+                        fontSize={EVENT_TITLE_FONT_SIZE}
+                        pointerEvents="none"
+                      >
+                        {displayTitle}
+                      </text>
+                    )}
                   </g>
                 );
               })
@@ -1122,11 +1210,10 @@ const visibleEvents = events
                     strokeWidth={1}
                   />
                   <text
-                    x={x}
-                    y={105}
-                    fill="#000"
-                    fontSize={scaledFontSize()}
-                    fontWeight="normal"
+                    x={worldToScreen(year)}
+                    y={100}
+                    fill="black"
+                    fontSize={AXIS_LABEL_FONT_SIZE}
                     textAnchor={
                       year === MIN_YEAR
                         ? "start"
@@ -1134,8 +1221,9 @@ const visibleEvents = events
                           ? "end"
                           : "middle"
                     }
+                    pointerEvents="none"
                   >
-                    {isZero ? "0" : formatYear(year)}
+                    {formatYear(year)}
                   </text>
                 </g>
               );
