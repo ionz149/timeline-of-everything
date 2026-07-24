@@ -19,6 +19,9 @@ const MAX_YEAR = new Date().getFullYear();
 const MAX_ZOOM = 30;
 const AXIS_LABEL_FONT_SIZE = 12;
 const MIN_TICK_LABEL_SPACING = 90;
+const DOUBLE_TAP_DELAY = 300;
+const DOUBLE_TAP_DISTANCE = 30;
+const DOUBLE_TAP_ZOOM_MULTIPLIER = 1.8;
 
 const clamp = (
   value: number,
@@ -176,7 +179,7 @@ const visibleEvents = events
   const laneStartY: Record<string, number> = {};
   const laneHeights: Record<string, number> = {};
 
-  let currentY = 160;
+  let currentY = 144;
 
   visibleLaneDefinitions.forEach(lane => {
     const rows = laneRowCounts[lane.id] ?? 0;
@@ -215,19 +218,39 @@ const visibleEvents = events
   const [lastPointerY, setLastPointerY] = useState(0);
   const [velocityX, setVelocityX] = useState(0);
   const [velocityY, setVelocityY] = useState(0);
+  const [pinchMomentum, setPinchMomentum] =
+    useState<{
+      x: number;
+      y: number;
+      zoom: number;
+    } | null>(null);
 
   const activePointersRef = useRef<
     Map<number, { x: number; y: number }>
   >(new Map());
 
-  const pinchStartRef = useRef<{
+  const pinchGestureRef = useRef<{
     distance: number;
     centerX: number;
     centerY: number;
     zoom: number;
     panX: number;
     panY: number;
+    timestamp: number;
+    velocityX: number;
+    velocityY: number;
+    zoomVelocity: number;
   } | null>(null);
+
+  const pinchReleaseVelocityRef = useRef<{
+    x: number;
+    y: number;
+    zoom: number;
+  }>({
+    x: 0,
+    y: 0,
+    zoom: 0,
+  });
 
   const primaryPointerStartRef = useRef<{
     id: number;
@@ -239,6 +262,36 @@ const visibleEvents = events
 
   const focusTimeoutRef =
     useRef<number | null>(null);
+
+  const cameraAnimationFrameRef =
+    useRef<number | null>(null);
+
+  const lastTapRef = useRef<{
+    time: number;
+    x: number;
+    y: number;
+  } | null>(null);
+
+  const pendingEventTapRef =
+    useRef<string | null>(null);
+
+  const singleTapTimeoutRef =
+    useRef<number | null>(null);
+
+  const lastEventPointerTypeRef =
+    useRef<string | null>(null);
+
+  const cancelPendingEventTap = () => {
+    if (singleTapTimeoutRef.current !== null) {
+      window.clearTimeout(
+        singleTapTimeoutRef.current
+      );
+
+      singleTapTimeoutRef.current = null;
+    }
+
+    pendingEventTapRef.current = null;
+  };
 
   const centerOnZero = () => {
     const worldZeroX = yearToX(0);
@@ -258,7 +311,14 @@ const visibleEvents = events
     cancelCameraAnimation();
 
     activePointersRef.current.clear();
-    pinchStartRef.current = null;
+    pinchGestureRef.current = null;
+
+    pinchReleaseVelocityRef.current = {
+      x: 0,
+      y: 0,
+      zoom: 0,
+    };
+
     isMapGestureRef.current = false;
     primaryPointerStartRef.current = null;
     primaryPointerMovedRef.current = false;
@@ -266,6 +326,7 @@ const visibleEvents = events
     setIsDragging(false);
     setVelocityX(0);
     setVelocityY(0);
+    setPinchMomentum(null);
   };
 
   const focusEvent = (
@@ -358,11 +419,180 @@ const visibleEvents = events
   };
 
   // =========================
+  // CAMERA ANIMATION
+  // =========================
+  const easeOutCubic = (progress: number) => {
+    return 1 - Math.pow(1 - progress, 3);
+  };
+
+  const animateCameraTo = (
+    targetZoom: number,
+    targetPanX: number,
+    targetPanY: number,
+    duration = 220
+  ) => {
+    if (cameraAnimationFrameRef.current !== null) {
+      cancelAnimationFrame(
+        cameraAnimationFrameRef.current
+      );
+    }
+
+    const startZoom = zoom;
+    const startPanX = panX;
+    const startPanY = panY;
+
+    const startTime = performance.now();
+
+    const targetPanXBounds =
+      getPanXBounds(targetZoom);
+
+    const clampedTargetPanX = clamp(
+      targetPanX,
+      targetPanXBounds.min,
+      targetPanXBounds.max
+    );
+
+    const clampedTargetPanY =
+      clampPanY(targetPanY);
+
+    const animate = (currentTime: number) => {
+      const elapsed = currentTime - startTime;
+
+      const progress = Math.min(
+        elapsed / duration,
+        1
+      );
+
+      const easedProgress =
+        easeOutCubic(progress);
+
+      const animatedZoom =
+        startZoom +
+        (targetZoom - startZoom) *
+          easedProgress;
+
+      const animatedPanX =
+        startPanX +
+        (clampedTargetPanX - startPanX) *
+          easedProgress;
+
+      const animatedPanY =
+        startPanY +
+        (clampedTargetPanY - startPanY) *
+          easedProgress;
+
+      setZoom(animatedZoom);
+      setPanX(animatedPanX);
+      setPanY(animatedPanY);
+
+      if (progress < 1) {
+        cameraAnimationFrameRef.current =
+          requestAnimationFrame(animate);
+      } else {
+        cameraAnimationFrameRef.current = null;
+
+        setZoom(targetZoom);
+        setPanX(clampedTargetPanX);
+        setPanY(clampedTargetPanY);
+      }
+    };
+
+    cameraAnimationFrameRef.current =
+      requestAnimationFrame(animate);
+  };
+
+  const animateZoomBy = (
+    zoomMultiplier: number
+  ) => {
+    const svg = svgRef.current;
+
+    if (!svg) {
+      return;
+    }
+
+    const rect = svg.getBoundingClientRect();
+
+    const centerX = rect.width / 2;
+
+    const minZoom = getMinZoom();
+
+    const targetZoom = Math.max(
+      minZoom,
+      Math.min(
+        MAX_ZOOM,
+        zoom * zoomMultiplier
+      )
+    );
+
+    if (targetZoom === zoom) {
+      return;
+    }
+
+    const worldX =
+      (centerX - panX) / zoom;
+
+    const targetPanX =
+      centerX - worldX * targetZoom;
+
+    setVelocityX(0);
+    setVelocityY(0);
+
+    animateCameraTo(
+      targetZoom,
+      targetPanX,
+      panY
+    );
+  };
+
+  const animateZoomAtPoint = (
+    screenX: number,
+    screenY: number,
+    zoomMultiplier: number
+  ) => {
+    const minZoom = getMinZoom();
+
+    const targetZoom = Math.max(
+      minZoom,
+      Math.min(
+        MAX_ZOOM,
+        zoom * zoomMultiplier
+      )
+    );
+
+    if (targetZoom === zoom) {
+      return;
+    }
+
+    const worldX =
+      (screenX - panX) / zoom;
+
+    const targetPanX =
+      screenX - worldX * targetZoom;
+
+    const targetPanY = panY;
+
+    setVelocityX(0);
+    setVelocityY(0);
+
+    animateCameraTo(
+      targetZoom,
+      targetPanX,
+      targetPanY
+    );
+  };
+
+  // =========================
   // WHEEL ZOOM
   // =========================
   const handleWheel = (e: React.WheelEvent<SVGSVGElement>) => {
     e.preventDefault();
+    if (cameraAnimationFrameRef.current !== null) {
+      cancelAnimationFrame(
+        cameraAnimationFrameRef.current
+      );
 
+      cameraAnimationFrameRef.current = null;
+    }
     const zoomIntensity = 0.0015;
 
     const direction = Math.exp(-e.deltaY * zoomIntensity);
@@ -414,8 +644,21 @@ const visibleEvents = events
       e.preventDefault();
     }
 
+    if (cameraAnimationFrameRef.current !== null) {
+      cancelAnimationFrame(
+        cameraAnimationFrameRef.current
+      );
+
+      cameraAnimationFrameRef.current = null;
+    }
+
     setVelocityX(0);
     setVelocityY(0);
+    setPinchMomentum(null);
+
+    e.currentTarget.setPointerCapture(
+      e.pointerId
+    );
 
     e.currentTarget.setPointerCapture(e.pointerId);
 
@@ -447,16 +690,35 @@ const visibleEvents = events
       primaryPointerMovedRef.current = true;
       isMapGestureRef.current = true;
 
-      const [first, second] = pointers;
-      const center = getPointerCenter(first, second);
+      lastTapRef.current = null;
+      cancelPendingEventTap();
 
-      pinchStartRef.current = {
-        distance: getPointerDistance(first, second),
+      const [first, second] = pointers;
+      const center = getPointerCenter(
+        first,
+        second
+      );
+
+      pinchGestureRef.current = {
+        distance: getPointerDistance(
+          first,
+          second
+        ),
         centerX: center.x,
         centerY: center.y,
         zoom,
         panX,
         panY,
+        timestamp: performance.now(),
+        velocityX: 0,
+        velocityY: 0,
+        zoomVelocity: 0,
+      };
+
+      pinchReleaseVelocityRef.current = {
+        x: 0,
+        y: 0,
+        zoom: 0,
       };
     }
   };
@@ -481,15 +743,46 @@ const visibleEvents = events
 
     if (
       pointers.length === 2 &&
-      pinchStartRef.current
+      pinchGestureRef.current
     ) {
+      lastTapRef.current = null;
+      cancelPendingEventTap();
       isMapGestureRef.current = true;
-      const [first, second] = pointers;
-      const center = getPointerCenter(first, second);
-      const distance = getPointerDistance(first, second);
 
+      const [first, second] = pointers;
+
+      const center = getPointerCenter(
+        first,
+        second
+      );
+
+      const distance = getPointerDistance(
+        first,
+        second
+      );
+
+      const previous =
+        pinchGestureRef.current;
+
+      const currentTime =
+        performance.now();
+
+      const elapsedMilliseconds = Math.max(
+        currentTime - previous.timestamp,
+        1
+      );
+
+      const frameDuration = 1000 / 60;
+
+      const velocityScale =
+        frameDuration /
+        elapsedMilliseconds;
+
+      // Calculate zoom from the previous
+      // pinch frame rather than the
+      // beginning of the entire gesture.
       const zoomRatio =
-        distance / pinchStartRef.current.distance;
+        distance / previous.distance;
 
       const minZoom = getMinZoom();
 
@@ -497,37 +790,97 @@ const visibleEvents = events
         minZoom,
         Math.min(
           MAX_ZOOM,
-          pinchStartRef.current.zoom * zoomRatio
+          previous.zoom * zoomRatio
         )
       );
 
-      const startWorldX =
-        (pinchStartRef.current.centerX -
-          pinchStartRef.current.panX) /
-        pinchStartRef.current.zoom;
+      // Keep the horizontal world position
+      // beneath the previous midpoint attached
+      // to the current midpoint.
+      const midpointWorldX =
+        (previous.centerX -
+          previous.panX) /
+        previous.zoom;
 
-      const newPanX =
-        center.x - startWorldX * newZoom;
+      const proposedPanX =
+        center.x -
+        midpointWorldX * newZoom;
 
-      const newPanY =
-        pinchStartRef.current.panY +
-        (center.y - pinchStartRef.current.centerY);
+      // The timeline does not scale vertically,
+      // so Y follows midpoint movement directly.
+      const midpointDeltaY =
+        center.y -
+        previous.centerY;
+
+      const proposedPanY =
+        previous.panY +
+        midpointDeltaY;
 
       const newPanXBounds =
         getPanXBounds(newZoom);
 
       const clampedNewPanX = clamp(
-        newPanX,
+        proposedPanX,
         newPanXBounds.min,
         newPanXBounds.max
       );
 
+      const clampedNewPanY =
+        clampPanY(proposedPanY);
+
+      // Velocities are normalized to roughly
+      // one 60 FPS animation frame. They are
+      // captured now but not yet applied after
+      // the gesture ends.
+      const MOMENTUM_PAN_SCALE = 0.18;
+      const MOMENTUM_ZOOM_SCALE = 0.08;
+
+      const pinchVelocityX =
+        (clampedNewPanX -
+          previous.panX) *
+        velocityScale *
+        MOMENTUM_PAN_SCALE;
+
+      const pinchVelocityY =
+        (clampedNewPanY -
+          previous.panY) *
+        velocityScale *
+        MOMENTUM_PAN_SCALE;
+
+      const pinchZoomVelocity =
+        (newZoom -
+          previous.zoom) *
+        velocityScale *
+        MOMENTUM_ZOOM_SCALE;
+
       setZoom(newZoom);
       setPanX(clampedNewPanX);
-      setPanY(clampPanY(newPanY));
+      setPanY(clampedNewPanY);
 
+      // Prevent the existing drag inertia
+      // system from running during the pinch.
       setVelocityX(0);
       setVelocityY(0);
+
+      pinchGestureRef.current = {
+        distance,
+        centerX: center.x,
+        centerY: center.y,
+        zoom: newZoom,
+        panX: clampedNewPanX,
+        panY: clampedNewPanY,
+        timestamp: currentTime,
+        velocityX: pinchVelocityX,
+        velocityY: pinchVelocityY,
+        zoomVelocity:
+          pinchZoomVelocity,
+      };
+
+      pinchReleaseVelocityRef.current = {
+        x: pinchVelocityX,
+        y: pinchVelocityY,
+        zoom: pinchZoomVelocity,
+      };
 
       return;
     }
@@ -554,6 +907,8 @@ const visibleEvents = events
     }
 
     primaryPointerMovedRef.current = true;
+    lastTapRef.current = null;
+    cancelPendingEventTap();
     isMapGestureRef.current = true;
     setIsDragging(true);
 
@@ -577,11 +932,39 @@ const visibleEvents = events
 
     activePointersRef.current.delete(e.pointerId);
 
+    const pointerCountAfterRelease =
+      activePointersRef.current.size;
+
+    const pinchReleaseVelocity =
+      pinchReleaseVelocityRef.current;
+
+    const hasPinchMomentum =
+      Math.abs(
+        pinchReleaseVelocity.x
+      ) > 0.05 ||
+      Math.abs(
+        pinchReleaseVelocity.y
+      ) > 0.05 ||
+      Math.abs(
+        pinchReleaseVelocity.zoom
+      ) > 0.0005;
+
+    if (
+      pointerCountAfterRelease < 2 &&
+      hasPinchMomentum
+    ) {
+      setPinchMomentum({
+        x: pinchReleaseVelocity.x,
+        y: pinchReleaseVelocity.y,
+        zoom: pinchReleaseVelocity.zoom,
+      });
+    }
+
     if (e.currentTarget.hasPointerCapture(e.pointerId)) {
       e.currentTarget.releasePointerCapture(e.pointerId);
     }
 
-    pinchStartRef.current = null;
+    pinchGestureRef.current = null;
 
     const remainingPointers = Array.from(
       activePointersRef.current.values()
@@ -592,8 +975,80 @@ const visibleEvents = events
       setLastPointerX(remainingPointers[0].x);
       setLastPointerY(remainingPointers[0].y);
     } else {
+      const wasMapGesture =
+        isMapGestureRef.current ||
+        primaryPointerMovedRef.current;
+
       setIsDragging(false);
       primaryPointerStartRef.current = null;
+
+      if (
+        e.pointerType === "touch" &&
+        !wasMapGesture
+      ) {
+        const svg = svgRef.current;
+
+        if (svg) {
+          const rect =
+            svg.getBoundingClientRect();
+
+          const tapX =
+            e.clientX - rect.left;
+
+          const tapY =
+            e.clientY - rect.top;
+
+          const now = performance.now();
+          const lastTap = lastTapRef.current;
+
+          const isDoubleTap =
+            lastTap !== null &&
+            now - lastTap.time <=
+              DOUBLE_TAP_DELAY &&
+            Math.hypot(
+              tapX - lastTap.x,
+              tapY - lastTap.y
+            ) <= DOUBLE_TAP_DISTANCE;
+
+          if (isDoubleTap) {
+            lastTapRef.current = null;
+
+            cancelPendingEventTap();
+
+            isMapGestureRef.current = true;
+
+            animateZoomAtPoint(
+              tapX,
+              tapY,
+              DOUBLE_TAP_ZOOM_MULTIPLIER
+            );
+          } else {
+            lastTapRef.current = {
+              time: now,
+              x: tapX,
+              y: tapY,
+            };
+
+            const pendingEventId =
+              pendingEventTapRef.current;
+
+            if (pendingEventId) {
+              cancelPendingEventTap();
+
+              pendingEventTapRef.current =
+                pendingEventId;
+
+              singleTapTimeoutRef.current =
+                window.setTimeout(() => {
+                  focusEvent(pendingEventId);
+
+                  pendingEventTapRef.current = null;
+                  singleTapTimeoutRef.current = null;
+                }, DOUBLE_TAP_DELAY);
+            }
+          }
+        }
+      }
 
       window.setTimeout(() => {
         isMapGestureRef.current = false;
@@ -605,9 +1060,20 @@ const visibleEvents = events
   const handlePointerCancel = (
     e: React.PointerEvent<SVGSVGElement>
   ) => {
-    activePointersRef.current.delete(e.pointerId);
-    pinchStartRef.current = null;
+    activePointersRef.current.delete(
+      e.pointerId
+    );
+
+    pinchGestureRef.current = null;
+
+    pinchReleaseVelocityRef.current = {
+      x: 0,
+      y: 0,
+      zoom: 0,
+    };
+
     setIsDragging(false);
+    setPinchMomentum(null);
   };
 
   const getPointerDistance = (
@@ -658,6 +1124,75 @@ const visibleEvents = events
     return () => cancelAnimationFrame(frame);
   }, [isDragging, velocityX, velocityY]);
 
+  // =========================
+  // PINCH MOMENTUM
+  // =========================
+  useEffect(() => {
+    if (!pinchMomentum) {
+      return;
+    }
+
+    const frame = requestAnimationFrame(() => {
+      const minZoom = getMinZoom();
+
+      const nextZoom = clamp(
+        zoom + pinchMomentum.zoom,
+        minZoom,
+        MAX_ZOOM
+      );
+
+      const panXBounds =
+        getPanXBounds(nextZoom);
+
+      const nextPanX = clamp(
+        panX + pinchMomentum.x,
+        panXBounds.min,
+        panXBounds.max
+      );
+
+      const nextPanY = clampPanY(
+        panY + pinchMomentum.y
+      );
+
+      setZoom(nextZoom);
+      setPanX(nextPanX);
+      setPanY(nextPanY);
+
+      const decay = 0.82;
+
+      const nextMomentum = {
+        x: pinchMomentum.x * decay,
+        y: pinchMomentum.y * decay,
+        zoom:
+          pinchMomentum.zoom * decay,
+      };
+
+      const momentumHasStopped =
+        Math.abs(nextMomentum.x) <
+          0.05 &&
+        Math.abs(nextMomentum.y) <
+          0.05 &&
+        Math.abs(nextMomentum.zoom) <
+          0.0005;
+
+      if (momentumHasStopped) {
+        setPinchMomentum(null);
+        return;
+      }
+
+      setPinchMomentum(nextMomentum);
+    });
+
+    return () => {
+      cancelAnimationFrame(frame);
+    };
+  }, [
+    pinchMomentum,
+    zoom,
+    panX,
+    panY,
+  ]);
+
   useEffect(() => {
     let lastTouchEnd = 0;
 
@@ -682,6 +1217,26 @@ const visibleEvents = events
         "touchend",
         preventDoubleTapZoom
       );
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (
+        cameraAnimationFrameRef.current !== null
+      ) {
+        cancelAnimationFrame(
+          cameraAnimationFrameRef.current
+        );
+      }
+
+      if (
+        singleTapTimeoutRef.current !== null
+      ) {
+        window.clearTimeout(
+          singleTapTimeoutRef.current
+        );
+      }
     };
   }, []);
 
@@ -888,17 +1443,12 @@ const visibleEvents = events
         <TimelineControls
           // onZoomIn={() => setZoom(z => z * 1.2)}
           // onZoomOut={() => setZoom(z => z / 1.2)}
-          onZoomIn={() =>
-            setZoom(z =>
-              Math.min(
-                MAX_ZOOM,
-                z * 1.2
-              )
-            )
-          }
-          onZoomOut={() =>
-            setZoom(z => Math.max(getMinZoom(), z / 1.2))
-          }
+          onZoomIn={() => {
+            animateZoomBy(1.2);
+          }}
+          onZoomOut={() => {
+            animateZoomBy(1 / 1.2);
+          }}
           // onPanLeft={() => setPanX(x => x - 200)}
           // onPanRight={() => setPanX(x => x + 200)}
           onPanLeft={() => setPanX(x => clampPanX(x - 200))}
@@ -1046,14 +1596,30 @@ const visibleEvents = events
                     onMouseLeave={() =>
                       setHoveredEventId(null)
                     }
+
                     onPointerDown={(e) => {
-                      if (e.pointerType !== "touch") {
-                        e.stopPropagation();
-                        isMapGestureRef.current = false;
+                      lastEventPointerTypeRef.current =
+                        e.pointerType;
+
+                      if (e.pointerType === "touch") {
+                        pendingEventTapRef.current =
+                          event.id;
+
+                        return;
                       }
+
+                      e.stopPropagation();
+                      isMapGestureRef.current = false;
                     }}
                     onClick={(e) => {
                       e.stopPropagation();
+
+                      if (
+                        lastEventPointerTypeRef.current ===
+                        "touch"
+                      ) {
+                        return;
+                      }
 
                       if (isMapGestureRef.current) {
                         return;
@@ -1182,7 +1748,7 @@ const visibleEvents = events
             x={0}
             y={70}
             width="100%"
-            height={70}
+            height={50}
             fill="white"
           />
 
@@ -1193,27 +1759,29 @@ const visibleEvents = events
               x2={axisEnd}
               y2={120}
               stroke="#000"
+              strokeWidth={2}
             />
 
             {ticks.map(year => {
               const x = worldToScreen(year);
-              const isZero = year === 0;
 
               return (
                 <g key={year}>
                   <line
                     x1={x}
-                    y1={110}
+                    y1={104}
                     x2={x}
-                    y2={130}
+                    y2={120}
                     stroke="#000"
-                    strokeWidth={1}
+                    strokeWidth={1.5}
                   />
+
                   <text
-                    x={worldToScreen(year)}
-                    y={100}
+                    x={x}
+                    y={96}
                     fill="black"
                     fontSize={AXIS_LABEL_FONT_SIZE}
+                    fontWeight={600}
                     textAnchor={
                       year === MIN_YEAR
                         ? "start"
